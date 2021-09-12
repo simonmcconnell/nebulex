@@ -98,7 +98,7 @@ defmodule Nebulex.TelemetryTest do
           assert measurements[:duration] > 0
           assert metadata[:adapter_meta][:cache] == cache
           assert metadata[:args] == ["foo", "bar", :infinity, :put, []]
-          assert metadata[:result] == true
+          assert metadata[:result] == {:ok, true}
           assert metadata[:telemetry_span_context] |> is_reference()
         end
       end)
@@ -172,7 +172,7 @@ defmodule Nebulex.TelemetryTest do
           get_all: [["foo", "foo foo"]],
           delete: ["unknown"],
           take: ["foo foo"],
-          has_key?: ["foo foo"],
+          exists?: ["foo foo"],
           incr: [:counter],
           ttl: ["foo"],
           expire: ["foo", 60_000],

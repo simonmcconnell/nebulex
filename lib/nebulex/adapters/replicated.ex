@@ -344,16 +344,12 @@ defmodule Nebulex.Adapters.Replicated do
         do: [name: normalize_module_name([name, Primary])] ++ primary_opts,
         else: primary_opts
 
-    # Maybe task supervisor for distributed tasks
-    {task_sup_name, children} = sup_child_spec(name, opts)
-
     # Prepare metadata
     adapter_meta = %{
       telemetry_prefix: telemetry_prefix,
       telemetry: telemetry,
       name: name,
       primary_name: primary_opts[:name],
-      task_sup: task_sup_name,
       stats: stats
     }
 
@@ -365,36 +361,19 @@ defmodule Nebulex.Adapters.Replicated do
         children: [
           {cache.__primary__, primary_opts},
           {__MODULE__.Bootstrap, Map.put(adapter_meta, :cache, cache)}
-          | children
         ]
       )
 
     {:ok, child_spec, adapter_meta}
   end
 
-  if Code.ensure_loaded?(:erpc) do
-    defp sup_child_spec(_name, _opts) do
-      {nil, []}
-    end
-  else
-    defp sup_child_spec(name, opts) do
-      # Task supervisor to execute parallel and/or remote commands
-      task_sup_name = normalize_module_name([name, TaskSupervisor])
-      task_sup_opts = Keyword.get(opts, :task_supervisor_opts, [])
-
-      children = [
-        {Task.Supervisor, [name: task_sup_name] ++ task_sup_opts}
-      ]
-
-      {task_sup_name, children}
-    end
-  end
-
   ## Nebulex.Adapter.Entry
 
   @impl true
-  defspan get(adapter_meta, key, opts) do
-    with_dynamic_cache(adapter_meta, :get, [key, opts])
+  defspan fetch(adapter_meta, key, opts) do
+    adapter_meta
+    |> with_dynamic_cache(:fetch, [key, opts])
+    |> handle_key_error(adapter_meta.name)
   end
 
   @impl true
@@ -405,8 +384,8 @@ defmodule Nebulex.Adapters.Replicated do
   @impl true
   defspan put(adapter_meta, key, value, _ttl, on_write, opts) do
     case with_transaction(adapter_meta, on_write, [key], [key, value, opts], opts) do
-      :ok -> true
-      bool -> bool
+      :ok -> {:ok, true}
+      other -> other
     end
   end
 
@@ -415,7 +394,10 @@ defmodule Nebulex.Adapters.Replicated do
     action = if on_write == :put_new, do: :put_new_all, else: :put_all
     keys = for {k, _} <- entries, do: k
 
-    with_transaction(adapter_meta, action, keys, [entries, opts], opts) || action == :put_all
+    case with_transaction(adapter_meta, action, keys, [entries, opts], opts) do
+      :ok -> {:ok, true}
+      other -> other
+    end
   end
 
   @impl true
@@ -425,7 +407,9 @@ defmodule Nebulex.Adapters.Replicated do
 
   @impl true
   defspan take(adapter_meta, key, opts) do
-    with_transaction(adapter_meta, :take, [key], [key, opts], opts)
+    adapter_meta
+    |> with_transaction(:take, [key], [key, opts], opts)
+    |> handle_key_error(adapter_meta.name)
   end
 
   @impl true
@@ -434,13 +418,15 @@ defmodule Nebulex.Adapters.Replicated do
   end
 
   @impl true
-  defspan has_key?(adapter_meta, key) do
-    with_dynamic_cache(adapter_meta, :has_key?, [key])
+  defspan exists?(adapter_meta, key) do
+    with_dynamic_cache(adapter_meta, :exists?, [key])
   end
 
   @impl true
   defspan ttl(adapter_meta, key) do
-    with_dynamic_cache(adapter_meta, :ttl, [key])
+    adapter_meta
+    |> with_dynamic_cache(:ttl, [key])
+    |> handle_key_error(adapter_meta.name)
   end
 
   @impl true
@@ -467,7 +453,7 @@ defmodule Nebulex.Adapters.Replicated do
     :global.trans(
       {name, self()},
       fn ->
-        multi_call(adapter_meta, :delete_all, [query, opts], opts)
+        multicall(adapter_meta, :delete_all, [query, opts], opts)
       end,
       Cluster.get_nodes(name)
     )
@@ -531,85 +517,95 @@ defmodule Nebulex.Adapters.Replicated do
 
   ## Private Functions
 
-  defp with_transaction(adapter_meta, action, keys, args, opts \\ []) do
-    do_with_transaction(adapter_meta, action, keys, args, opts, 1)
+  defp handle_key_error({:error, %Nebulex.KeyError{} = e}, name) do
+    {:error, %{e | cache: name}}
   end
 
-  defp do_with_transaction(%{name: name} = adapter_meta, action, keys, args, opts, times) do
-    # This is a bit hacky because the `:global_locks` table managed by
-    # `:global` is being accessed directly breaking the encapsulation.
-    # So far, this has been the simplest and fastest way to validate if
-    # the global sync lock `:"$sync_lock"` is set, so we block write-like
-    # operations until it finishes. The other option would be trying to
-    # lock the same key `:"$sync_lock"`, and then when the lock is acquired,
-    # delete it before processing the write operation. But this means another
-    # global lock across the cluster every time there is a write. So for the
-    # time being, we just read the global table to validate it which is much
-    # faster; since it is a local read with the global ETS, there is no global
-    # locks across the cluster.
-    case :ets.lookup(:global_locks, :"$sync_lock") do
-      [_] ->
-        :ok = random_sleep(times)
+  defp handle_key_error(other, _name) do
+    other
+  end
 
-        do_with_transaction(adapter_meta, action, keys, args, opts, times + 1)
+  defp with_transaction(
+         %{pid: pid, name: name} = adapter_meta,
+         action,
+         keys,
+         args,
+         opts \\ []
+       ) do
+    nodes = Cluster.get_nodes(name)
 
-      [] ->
-        nodes = Cluster.get_nodes(name)
-
+    # Ensure it waits until ongoing delete_all or sync operations finish,
+    # if there's any.
+    :global.trans(
+      {name, pid},
+      fn ->
         # Write-like operation must be wrapped within a transaction
         # to ensure proper replication
-        transaction(adapter_meta, [keys: keys, nodes: nodes], fn ->
-          multi_call(adapter_meta, action, args, opts)
-        end)
+        with {:ok, res} <-
+               transaction(adapter_meta, [keys: keys, nodes: nodes], fn ->
+                 multicall(adapter_meta, action, args, opts)
+               end) do
+          res
+        end
+      end,
+      nodes
+    )
+  end
+
+  defp multicall(%{name: name} = meta, action, args, opts) do
+    # Run the command locally first and run replication only if success
+    case with_dynamic_cache(meta, action, args) do
+      {:error, _} = error ->
+        error
+
+      local ->
+        # Run the command on the remote nodes
+        {ok_nodes, error_nodes} =
+          RPC.multicall(
+            Cluster.get_nodes(name) -- [node()],
+            __MODULE__,
+            :with_dynamic_cache,
+            [meta, action, args],
+            opts
+          )
+
+        # Process the responses adding the local one as main result
+        handle_rpc_multicall({[local | ok_nodes], error_nodes}, meta, action)
     end
   end
 
-  defp multi_call(%{name: name, task_sup: task_sup} = meta, action, args, opts) do
-    # Run the command locally first
-    local = with_dynamic_cache(meta, action, args)
-
-    # Run the command on the remote nodes
-    {ok_nodes, error_nodes} =
-      RPC.multi_call(
-        task_sup,
-        Cluster.get_nodes(name) -- [node()],
-        __MODULE__,
-        :with_dynamic_cache,
-        [meta, action, args],
-        opts
-      )
-
-    # Process the responses adding the local one as source of truth
-    handle_rpc_multi_call({[local | ok_nodes], error_nodes}, meta, action)
-  end
-
-  defp handle_rpc_multi_call({res, []}, _meta, _action), do: hd(res)
-
-  defp handle_rpc_multi_call({res, {:sanitized, {[], rpc_errors}}}, meta, action) do
-    _ = dispatch_replication_error(meta, action, rpc_errors)
+  defp handle_rpc_multicall({res, []}, _meta, _action) do
     hd(res)
   end
 
-  defp handle_rpc_multi_call({responses, {:sanitized, {errors, rpc_errors}}}, meta, action) do
-    _ = dispatch_replication_error(meta, action, rpc_errors)
-
-    raise Nebulex.RPCMultiCallError, action: action, responses: responses, errors: errors
+  defp handle_rpc_multicall({res, {[], ignored_errors}}, meta, action) do
+    _ = dispatch_replication_error(meta, action, ignored_errors)
+    hd(res)
   end
 
-  defp handle_rpc_multi_call({responses, errors}, meta, action) do
-    handle_rpc_multi_call({responses, {:sanitized, sanitize_errors(errors)}}, meta, action)
+  defp handle_rpc_multicall({_responses, {filtered_errors, ignored_errors}}, meta, action) do
+    _ = dispatch_replication_error(meta, action, ignored_errors)
+    wrap_error Nebulex.Error, reason: {:rpc_multicall_error, filtered_errors}, module: RPC
   end
 
-  defp sanitize_errors(errors) do
+  defp handle_rpc_multicall({responses, errors}, meta, action) do
+    handle_rpc_multicall({responses, filter_errors(errors)}, meta, action)
+  end
+
+  defp filter_errors(errors) do
     Enum.reduce(errors, {[], []}, fn
-      {{:error, {:exception, %Nebulex.RegistryLookupError{} = error, _}}, node}, {acc1, acc2} ->
-        # The cache was not found in the node, maybe it was stopped and
-        # "Process Groups" is not updated yet, then ignore the error
-        {acc1, [{node, error} | acc2]}
+      {_node, {:error, %Nebulex.KeyError{}}} = error, {acc1, acc2} ->
+        # The key was not found on remote node, ignore the error
+        {acc1, [error | acc2]}
 
-      {{:error, {:erpc, :noconnection}}, node}, {acc1, acc2} ->
-        # Remote node is down and maybe the "Process Groups" is not updated yet
-        {acc1, [{node, :noconnection} | acc2]}
+      {_node, {:error, %Nebulex.Error{reason: {:registry_error, _}}}} = error, {acc1, acc2} ->
+        # The cache was not found in the remote node, maybe it was stopped and
+        # :pg ("Process Groups") is not updated yet, then ignore the error
+        {acc1, [error | acc2]}
+
+      {_node, {:error, {:erpc, :noconnection}}} = error, {acc1, acc2} ->
+        # Remote node is down, maybe :pg ("Process Groups") is not updated yet
+        {acc1, [error | acc2]}
 
       error, {acc1, acc2} ->
         {[error | acc1], acc2}
@@ -710,11 +706,12 @@ defmodule Nebulex.Adapters.Replicated.Bootstrap do
 
   def handle_info(:timeout, %{name: name, retries: retries} = state)
       when retries < @max_retries do
-    Adapter.with_meta(name, fn _adapter, adapter_meta ->
-      handle_info(:timeout, adapter_meta)
-    end)
-  rescue
-    ArgumentError -> {:noreply, %{state | retries: retries + 1}, 1}
+    with {:error, _} <-
+           Adapter.with_meta(name, fn _adapter, adapter_meta ->
+             handle_info(:timeout, adapter_meta)
+           end) do
+      {:noreply, %{state | retries: retries + 1}, 1}
+    end
   end
 
   def handle_info(:timeout, state) do
@@ -806,16 +803,18 @@ defmodule Nebulex.Adapters.Replicated.Bootstrap do
 
   defp stream_entries(meta, node, acc) do
     stream_fun = fn ->
-      meta
-      |> Replicated.stream(nil, return: :entry, page_size: 100)
-      |> Stream.filter(&(not Entry.expired?(&1)))
-      |> Stream.map(& &1)
-      |> Enum.to_list()
+      with {:ok, stream} <- Replicated.stream(meta, nil, return: :entry, page_size: 100) do
+        stream
+        |> Stream.filter(&(not Entry.expired?(&1)))
+        |> Stream.map(& &1)
+        |> Enum.to_list()
+        |> wrap_ok()
+      end
     end
 
     case :rpc.call(node, Kernel, :apply, [stream_fun, []]) do
-      {:badrpc, _} -> {:cont, acc}
-      entries -> {:halt, entries}
+      {:ok, entries} -> {:halt, entries}
+      _error -> {:cont, acc}
     end
   end
 

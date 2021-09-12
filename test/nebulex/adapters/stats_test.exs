@@ -1,6 +1,7 @@
 defmodule Nebulex.Adapters.StatsTest do
   use ExUnit.Case
 
+  import Mock
   import Nebulex.CacheCase
 
   alias Nebulex.Cache.Stats
@@ -53,18 +54,25 @@ defmodule Nebulex.Adapters.StatsTest do
   ## Tests
 
   describe "(multilevel) stats/0" do
+    alias Cache.L1
+
     setup_with_cache(Cache, [stats: true] ++ @config)
 
+    test_with_mock "returns an error", L1.__adapter__(), [:passthrough],
+      stats: fn _ -> {:error, %Nebulex.Error{reason: :error}} end do
+      assert Cache.stats() == {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
+    end
+
     test "hits and misses" do
-      :ok = Cache.put_all(a: 1, b: 2)
+      :ok = Cache.put_all!(a: 1, b: 2)
 
-      assert Cache.get(:a) == 1
-      assert Cache.has_key?(:a)
-      assert Cache.ttl(:b) == :infinity
-      refute Cache.get(:c)
-      refute Cache.get(:d)
+      assert Cache.get!(:a) == 1
+      assert Cache.exists?(:a)
+      assert Cache.ttl!(:b) == :infinity
+      refute Cache.get!(:c)
+      refute Cache.get!(:d)
 
-      assert Cache.get_all([:a, :b, :c, :d]) == %{a: 1, b: 2}
+      assert Cache.get_all!([:a, :b, :c, :d]) == %{a: 1, b: 2}
 
       assert_stats_measurements(Cache,
         l1: [hits: 5, misses: 4, writes: 2],
@@ -74,24 +82,24 @@ defmodule Nebulex.Adapters.StatsTest do
     end
 
     test "writes and updates" do
-      assert Cache.put_all(a: 1, b: 2) == :ok
+      assert Cache.put_all!(a: 1, b: 2) == :ok
       assert Cache.put_all(%{a: 1, b: 2}) == :ok
-      refute Cache.put_new_all(a: 1, b: 2)
-      assert Cache.put_new_all(c: 3, d: 4, e: 3)
-      assert Cache.put(1, 1) == :ok
-      refute Cache.put_new(1, 2)
-      refute Cache.replace(2, 2)
-      assert Cache.put_new(2, 2)
-      assert Cache.replace(2, 22)
-      assert Cache.incr(:counter) == 1
-      assert Cache.incr(:counter) == 2
-      refute Cache.expire(:f, 1000)
-      assert Cache.expire(:a, 1000)
-      refute Cache.touch(:f)
-      assert Cache.touch(:b)
+      refute Cache.put_new_all!(a: 1, b: 2)
+      assert Cache.put_new_all!(c: 3, d: 4, e: 3)
+      assert Cache.put!(1, 1) == :ok
+      refute Cache.put_new!(1, 2)
+      refute Cache.replace!(2, 2)
+      assert Cache.put_new!(2, 2)
+      assert Cache.replace!(2, 22)
+      assert Cache.incr!(:counter) == 1
+      assert Cache.incr!(:counter) == 2
+      refute Cache.expire!(:f, 1000)
+      assert Cache.expire!(:a, 1000)
+      refute Cache.touch!(:f)
+      assert Cache.touch!(:b)
 
       :ok = Process.sleep(1100)
-      refute Cache.get(:a)
+      refute Cache.get!(:a)
 
       wait_until(fn ->
         assert_stats_measurements(Cache,
@@ -104,11 +112,14 @@ defmodule Nebulex.Adapters.StatsTest do
 
     test "evictions" do
       entries = for x <- 1..10, do: {x, x}
-      :ok = Cache.put_all(entries)
+      :ok = Cache.put_all!(entries)
 
-      assert Cache.delete(1) == :ok
-      assert Cache.take(2) == 2
-      refute Cache.take(20)
+      assert Cache.delete!(1) == :ok
+      assert Cache.take!(2) == 2
+
+      assert_raise Nebulex.KeyError, fn ->
+        Cache.take!(20)
+      end
 
       assert_stats_measurements(Cache,
         l1: [evictions: 2, misses: 1, writes: 10],
@@ -116,7 +127,7 @@ defmodule Nebulex.Adapters.StatsTest do
         l3: [evictions: 2, misses: 1, writes: 10]
       )
 
-      assert Cache.delete_all() == 24
+      assert Cache.delete_all!() == 24
 
       assert_stats_measurements(Cache,
         l1: [evictions: 10, misses: 1, writes: 10],
@@ -126,13 +137,13 @@ defmodule Nebulex.Adapters.StatsTest do
     end
 
     test "expirations" do
-      :ok = Cache.put_all(a: 1, b: 2)
-      :ok = Cache.put_all([c: 3, d: 4], ttl: 1000)
+      :ok = Cache.put_all!(a: 1, b: 2)
+      :ok = Cache.put_all!([c: 3, d: 4], ttl: 1000)
 
-      assert Cache.get_all([:a, :b, :c, :d]) == %{a: 1, b: 2, c: 3, d: 4}
+      assert Cache.get_all!([:a, :b, :c, :d]) == %{a: 1, b: 2, c: 3, d: 4}
 
       :ok = Process.sleep(1100)
-      assert Cache.get_all([:a, :b, :c, :d]) == %{a: 1, b: 2}
+      assert Cache.get_all!([:a, :b, :c, :d]) == %{a: 1, b: 2}
 
       wait_until(fn ->
         assert_stats_measurements(Cache,
@@ -150,12 +161,12 @@ defmodule Nebulex.Adapters.StatsTest do
     setup_with_cache(Replicated, [stats: true] ++ @config)
 
     test "hits and misses" do
-      :ok = Replicated.put_all(a: 1, b: 2)
+      :ok = Replicated.put_all!(a: 1, b: 2)
 
-      assert Replicated.get(:a) == 1
-      assert Replicated.get_all([:a, :b, :c, :d]) == %{a: 1, b: 2}
+      assert Replicated.get!(:a) == 1
+      assert Replicated.get_all!([:a, :b, :c, :d]) == %{a: 1, b: 2}
 
-      assert %Nebulex.Stats{measurements: measurements} = Replicated.stats()
+      assert %Nebulex.Stats{measurements: measurements} = Replicated.stats!()
       assert measurements.hits == 3
       assert measurements.misses == 2
     end
@@ -167,12 +178,12 @@ defmodule Nebulex.Adapters.StatsTest do
     setup_with_cache(Partitioned, [stats: true] ++ @config)
 
     test "hits and misses" do
-      :ok = Partitioned.put_all(a: 1, b: 2)
+      :ok = Partitioned.put_all!(a: 1, b: 2)
 
-      assert Partitioned.get(:a) == 1
-      assert Partitioned.get_all([:a, :b, :c, :d]) == %{a: 1, b: 2}
+      assert Partitioned.get!(:a) == 1
+      assert Partitioned.get_all!([:a, :b, :c, :d]) == %{a: 1, b: 2}
 
-      assert %Nebulex.Stats{measurements: measurements} = Partitioned.stats()
+      assert %Nebulex.Stats{measurements: measurements} = Partitioned.stats!()
       assert measurements.hits == 3
       assert measurements.misses == 2
     end
@@ -190,7 +201,7 @@ defmodule Nebulex.Adapters.StatsTest do
     )
 
     test "ignored when returning stats" do
-      measurements = Cache.stats().measurements
+      measurements = Cache.stats!().measurements
       assert Map.get(measurements, :l1)
       assert Map.get(measurements, :l2)
       assert Map.get(measurements, :l3)
@@ -247,8 +258,8 @@ defmodule Nebulex.Adapters.StatsTest do
     setup_with_cache(Cache, [stats: true] ++ @config)
 
     test "updates evictions" do
-      :ok = Cache.put_all(a: 1, b: 2, c: 3)
-      assert Cache.count_all() == 9
+      :ok = Cache.put_all!(a: 1, b: 2, c: 3)
+      assert Cache.count_all!() == 9
 
       assert_stats_measurements(Cache,
         l1: [evictions: 0, writes: 3],
@@ -257,7 +268,7 @@ defmodule Nebulex.Adapters.StatsTest do
       )
 
       _ = L1.new_generation()
-      assert Cache.count_all() == 9
+      assert Cache.count_all!() == 9
 
       assert_stats_measurements(Cache,
         l1: [evictions: 0, writes: 3],
@@ -266,7 +277,7 @@ defmodule Nebulex.Adapters.StatsTest do
       )
 
       _ = L1.new_generation()
-      assert Cache.count_all() == 6
+      assert Cache.count_all!() == 6
 
       assert_stats_measurements(Cache,
         l1: [evictions: 3, writes: 3],
@@ -276,7 +287,7 @@ defmodule Nebulex.Adapters.StatsTest do
 
       _ = L2Primary.new_generation()
       _ = L2Primary.new_generation()
-      assert Cache.count_all() == 3
+      assert Cache.count_all!() == 3
 
       assert_stats_measurements(Cache,
         l1: [evictions: 3, writes: 3],
@@ -286,7 +297,7 @@ defmodule Nebulex.Adapters.StatsTest do
 
       _ = L3Primary.new_generation()
       _ = L3Primary.new_generation()
-      assert Cache.count_all() == 0
+      assert Cache.count_all!() == 0
 
       assert_stats_measurements(Cache,
         l1: [evictions: 3, writes: 3],
@@ -300,7 +311,7 @@ defmodule Nebulex.Adapters.StatsTest do
     setup_with_cache(Cache, @config)
 
     test "stats/0 returns nil" do
-      refute Cache.stats()
+      refute Cache.stats!()
     end
 
     test "dispatch_stats/1 is skipped" do
@@ -330,6 +341,12 @@ defmodule Nebulex.Adapters.StatsTest do
                }
       end)
     end
+
+    test_with_mock "returns an error", Cache.__adapter__(), [:passthrough],
+      stats: fn _ -> {:error, %Nebulex.Error{reason: :error}} end do
+      assert Cache.dispatch_stats() ==
+               {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
+    end
   end
 
   describe "dispatch_stats/1 with dynamic cache" do
@@ -358,7 +375,7 @@ defmodule Nebulex.Adapters.StatsTest do
   ## Helpers
 
   defp assert_stats_measurements(cache, levels) do
-    measurements = cache.stats().measurements
+    measurements = cache.stats!().measurements
 
     for {level, stats} <- levels, {stat, expected} <- stats do
       assert get_in(measurements, [level, stat]) == expected

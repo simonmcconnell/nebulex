@@ -72,7 +72,6 @@ defmodule Nebulex.Adapters.Local.Generation do
 
   alias Nebulex.Adapter
   alias Nebulex.Adapter.Stats
-  alias Nebulex.Adapters.Local
   alias Nebulex.Adapters.Local.{Backend, Metadata}
   alias Nebulex.Telemetry
   alias Nebulex.Telemetry.StatsHandler
@@ -120,7 +119,7 @@ defmodule Nebulex.Adapters.Local.Generation do
 
       Nebulex.Adapters.Local.Generation.delete_all(MyCache)
   """
-  @spec delete_all(server_ref) :: integer
+  @spec delete_all(server_ref) :: :ok
   def delete_all(server_ref) do
     do_call(server_ref, :delete_all)
   end
@@ -224,9 +223,7 @@ defmodule Nebulex.Adapters.Local.Generation do
   end
 
   defp get_meta_tab(server_ref) when is_atom(server_ref) or is_pid(server_ref) do
-    Adapter.with_meta(server_ref, fn _, %{meta_tab: meta_tab} ->
-      meta_tab
-    end)
+    unwrap_or_raise Adapter.with_meta(server_ref, fn _, %{meta_tab: meta_tab} -> meta_tab end)
   end
 
   defp get_meta_tab(server_ref), do: server_ref
@@ -306,11 +303,6 @@ defmodule Nebulex.Adapters.Local.Generation do
 
   @impl true
   def handle_call(:delete_all, _from, %__MODULE__{} = state) do
-    size =
-      state
-      |> Map.from_struct()
-      |> Local.execute(:count_all, nil, [])
-
     :ok = new_gen(state)
 
     :ok =
@@ -318,7 +310,7 @@ defmodule Nebulex.Adapters.Local.Generation do
       |> list()
       |> Enum.each(&state.backend.delete_all_objects(&1))
 
-    {:reply, size, %{state | gc_heartbeat_ref: maybe_reset_timer(true, state)}}
+    {:reply, :ok, %{state | gc_heartbeat_ref: maybe_reset_timer(true, state)}}
   end
 
   def handle_call({:new_generation, reset_timer?}, _from, state) do
