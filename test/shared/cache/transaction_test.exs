@@ -8,7 +8,7 @@ defmodule Nebulex.Cache.TransactionTest do
                  with :ok <- cache.put(1, 11),
                       11 <- cache.fetch!(1),
                       :ok <- cache.delete(1) do
-                    cache.get!(1)
+                   cache.get!(1)
                  end
                end) == {:ok, nil}
       end
@@ -23,7 +23,7 @@ defmodule Nebulex.Cache.TransactionTest do
                        with :ok <- cache.put(1, 11),
                             11 <- cache.fetch!(1),
                             :ok <- cache.delete(1) do
-                          cache.get!(1)
+                         cache.get!(1)
                        end
                      end
                    )
