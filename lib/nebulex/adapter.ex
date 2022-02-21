@@ -31,7 +31,7 @@ defmodule Nebulex.Adapter do
   @doc """
   Initializes the adapter supervision tree by returning the children.
   """
-  @callback init(config :: Keyword.t()) :: {:ok, :supervisor.child_spec(), adapter_meta}
+  @callback init(config :: keyword) :: {:ok, :supervisor.child_spec(), adapter_meta}
 
   @doc """
   Executes the function `fun` passing as parameters the adapter and metadata

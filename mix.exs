@@ -48,6 +48,7 @@ defmodule Nebulex.MixProject do
 
   defp deps do
     [
+      {:nimble_options, "~> 0.4"},
       {:shards, "~> 1.0", optional: true},
       {:decorator, "~> 1.4", optional: true},
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},

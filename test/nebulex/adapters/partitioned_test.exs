@@ -94,7 +94,7 @@ defmodule Nebulex.Adapters.PartitionedTest do
                  keyslot: "invalid"
                )
 
-      assert Regex.match?(~r"expected keyslot: to be an atom, got: \"invalid\"", msg)
+      assert Regex.match?(~r"expected :keyslot to be an atom, got: \"invalid\"", msg)
     end
   end
 

@@ -76,7 +76,7 @@ defmodule Nebulex.Adapters.Multilevel do
   the cache configuration:
 
     * `:levels` - This option is to define the levels, a list of tuples
-      `{cache_level :: Nebulex.Cache.t(), opts :: Keyword.t()}`, where
+      `{cache_level :: Nebulex.Cache.t(), opts :: keyword}`, where
       the first element is the module that defines the cache for that
       level, and the second one is the options that will be passed to
       that level in the `start/link/1` (which depends on the adapter
@@ -221,9 +221,6 @@ defmodule Nebulex.Adapters.Multilevel do
 
   alias Nebulex.Cache.Cluster
 
-  # Multi-level Cache Models
-  @models [:inclusive, :exclusive]
-
   ## Nebulex.Adapter
 
   @impl true
@@ -242,6 +239,9 @@ defmodule Nebulex.Adapters.Multilevel do
 
   @impl true
   def init(opts) do
+    # Validate options
+    opts = __MODULE__.Options.validate!(opts)
+
     # Required options
     telemetry_prefix = Keyword.fetch!(opts, :telemetry_prefix)
     telemetry = Keyword.fetch!(opts, :telemetry)
@@ -249,19 +249,13 @@ defmodule Nebulex.Adapters.Multilevel do
     name = opts[:name] || cache
 
     # Maybe use stats
-    stats = get_boolean_option(opts, :stats)
+    stats = Keyword.fetch!(opts, :stats)
 
     # Get cache levels
-    levels =
-      get_option(
-        opts,
-        :levels,
-        "a list with at least one level definition",
-        &(Keyword.keyword?(&1) && length(&1) > 0)
-      )
+    levels = Keyword.fetch!(opts, :levels)
 
     # Get multilevel-cache model
-    model = get_option(opts, :model, ":inclusive or :exclusive", &(&1 in @models), :inclusive)
+    model = Keyword.fetch!(opts, :model)
 
     # Build multi-level specs
     {children, meta_list, _} = children(levels, telemetry_prefix, telemetry, stats)
@@ -418,11 +412,13 @@ defmodule Nebulex.Adapters.Multilevel do
 
   defp do_take([l_meta | rest], {:error, %Nebulex.KeyError{}}, key, opts) do
     result = with_dynamic_cache(l_meta, :take, [key, opts])
+
     do_take(rest, result, key, opts)
   end
 
   defp do_take(levels, result, key, _opts) do
     _ = eval(levels, :delete, [key, []])
+
     result
   end
 

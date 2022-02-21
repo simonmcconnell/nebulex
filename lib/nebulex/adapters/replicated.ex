@@ -102,9 +102,6 @@ defmodule Nebulex.Adapters.Replicated do
       with the local primary storage. These options will depend on the local
       adapter to use.
 
-    * `:task_supervisor_opts` - Start-time options passed to
-      `Task.Supervisor.start_link/1` when the adapter is initialized.
-
   ## Shared options
 
   Almost all of the cache functions outlined in `Nebulex.Cache` module
@@ -322,6 +319,9 @@ defmodule Nebulex.Adapters.Replicated do
 
   @impl true
   def init(opts) do
+    # Validate options
+    opts = __MODULE__.Options.validate!(opts)
+
     # Required options
     telemetry_prefix = Keyword.fetch!(opts, :telemetry_prefix)
     telemetry = Keyword.fetch!(opts, :telemetry)
@@ -329,7 +329,7 @@ defmodule Nebulex.Adapters.Replicated do
     name = opts[:name] || cache
 
     # Maybe use stats
-    stats = get_boolean_option(opts, :stats)
+    stats = Keyword.fetch!(opts, :stats)
 
     # Primary cache options
     primary_opts =

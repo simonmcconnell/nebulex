@@ -7,7 +7,7 @@ defmodule Nebulex.Cache.Registry do
 
   ## API
 
-  @spec start_link(Keyword.t()) :: GenServer.on_start()
+  @spec start_link(keyword) :: GenServer.on_start()
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end

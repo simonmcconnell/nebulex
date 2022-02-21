@@ -268,7 +268,18 @@ defmodule Nebulex.Cache.Entry do
   def incr(name, key, amount, opts)
 
   def incr(name, key, amount, opts) when is_integer(amount) do
-    default = get_option(opts, :default, "an integer", &is_integer/1, 0)
+    default =
+      case Keyword.fetch(opts, :default) do
+        {:ok, value} when is_integer(value) ->
+          value
+
+        {:ok, value} ->
+          raise ArgumentError, "expected default: to be an integer, got: #{inspect(value)}"
+
+        :error ->
+          0
+      end
+
     Adapter.with_meta(name, & &1.update_counter(&2, key, amount, get_ttl(opts), default, opts))
   end
 
@@ -355,6 +366,16 @@ defmodule Nebulex.Cache.Entry do
   ## Helpers
 
   defp get_ttl(opts) do
-    get_option(opts, :ttl, "a valid timeout", &Time.timeout?/1, :infinity)
+    case Keyword.fetch(opts, :ttl) do
+      {:ok, ttl} ->
+        if not Time.timeout?(ttl) do
+          raise ArgumentError, "expected ttl: to be a valid timeout, got: #{inspect(ttl)}"
+        end
+
+        ttl
+
+      :error ->
+        :infinity
+    end
   end
 end

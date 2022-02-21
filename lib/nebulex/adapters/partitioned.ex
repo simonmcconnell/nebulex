@@ -372,6 +372,9 @@ defmodule Nebulex.Adapters.Partitioned do
 
   @impl true
   def init(opts) do
+    # Validate options
+    opts = __MODULE__.Options.validate!(opts)
+
     # Required options
     telemetry_prefix = Keyword.fetch!(opts, :telemetry_prefix)
     telemetry = Keyword.fetch!(opts, :telemetry)
@@ -379,7 +382,7 @@ defmodule Nebulex.Adapters.Partitioned do
     name = opts[:name] || cache
 
     # Maybe use stats
-    stats = get_boolean_option(opts, :stats)
+    stats = Keyword.fetch!(opts, :stats)
 
     # Primary cache options
     primary_opts =
@@ -397,7 +400,7 @@ defmodule Nebulex.Adapters.Partitioned do
     # Keyslot module for selecting nodes
     keyslot =
       opts
-      |> get_option(:keyslot, "an atom", &is_atom/1, __MODULE__)
+      |> Keyword.get(:keyslot, __MODULE__)
       |> assert_behaviour(Nebulex.Adapter.Keyslot, "keyslot")
 
     # Prepare metadata
@@ -691,9 +694,6 @@ defmodule Nebulex.Adapters.Partitioned.Bootstrap do
   alias Nebulex.Cache.Cluster
   alias Nebulex.Telemetry
 
-  # Default join timeout
-  @join_timeout :timer.seconds(180)
-
   # State
   defstruct [:adapter_meta, :join_timeout]
 
@@ -764,14 +764,7 @@ defmodule Nebulex.Adapters.Partitioned.Bootstrap do
 
   defp build_state(adapter_meta, opts) do
     # Join timeout to ensure it is always joined to the cluster
-    join_timeout =
-      get_option(
-        opts,
-        :join_timeout,
-        "an integer > 0",
-        &(is_integer(&1) and &1 > 0),
-        @join_timeout
-      )
+    join_timeout = Keyword.fetch!(opts, :join_timeout)
 
     %__MODULE__{adapter_meta: adapter_meta, join_timeout: join_timeout}
   end

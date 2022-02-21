@@ -30,12 +30,10 @@ defmodule Nebulex.LocalTest do
 
     describe "error" do
       test "on init because invalid backend", %{cache: cache} do
-        assert {:error, {%RuntimeError{message: msg}, _}} =
+        assert {:error, {%ArgumentError{message: msg}, _}} =
                  cache.start_link(name: :invalid_backend, backend: :xyz)
 
-        assert msg ==
-                 "expected backend: option to be one of the supported " <>
-                   "backends [:ets, :shards], got: :xyz"
+        assert msg == "expected :backend to be in [:ets, :shards], got: :xyz"
       end
 
       test "because cache is stopped", %{cache: cache, name: name} do

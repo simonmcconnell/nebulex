@@ -67,8 +67,10 @@ defmodule Nebulex.Cache.Supervisor do
         )
 
         {:ok, child, meta} = adapter.init([cache: cache] ++ opts)
+
         meta = Map.put(meta, :cache, cache)
         child_spec = wrap_child_spec(child, [adapter, meta])
+
         Supervisor.init([child_spec], strategy: :one_for_one, max_restarts: 0)
 
       other ->

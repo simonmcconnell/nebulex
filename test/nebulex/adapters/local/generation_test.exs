@@ -82,14 +82,14 @@ defmodule Nebulex.Adapters.Local.GenerationTest do
     test "error: invalid gc_cleanup_min_timeout" do
       _ = Process.flag(:trap_exit, true)
 
-      assert {:error, {:shutdown, {_, _, {:shutdown, {_, _, {%ArgumentError{message: err}, _}}}}}} =
+      assert {:error, {%ArgumentError{message: err}, _}} =
                LocalWithSizeLimit.start_link(
                  gc_interval: 3600,
                  gc_cleanup_min_timeout: -1,
                  gc_cleanup_max_timeout: -1
                )
 
-      assert err == "expected gc_cleanup_min_timeout: to be an integer > 0, got: -1"
+      assert err == "expected :gc_cleanup_min_timeout to be a positive integer, got: -1"
     end
   end
 

@@ -45,9 +45,9 @@ defmodule Nebulex.Adapters.Local do
       internally, this option is used when a new table is created; see
       `:ets.new/2`. Defaults to `true`.
 
-    * `:compressed` - (boolean) This option is used when a new ETS table is
-      created and it defines whether or not it includes X as an option; see
-      `:ets.new/2`. Defaults to `false`.
+    * `:compressed` - (boolean) Since this adapter uses ETS tables internally,
+      this option is used when a new table is created; see `:ets.new/2`.
+      Defaults to `false`.
 
     * `:backend_type` - This option defines the type of ETS to be used
       (Defaults to `:set`). However, it is highly recommended to keep the
@@ -337,9 +337,6 @@ defmodule Nebulex.Adapters.Local do
     ttl: nil
   )
 
-  # Supported Backends
-  @backends ~w(ets shards)a
-
   # Inline common instructions
   @compile {:inline, list_gen: 1, newer_gen: 1, fetch_entry: 3, pop_entry: 3}
 
@@ -380,6 +377,9 @@ defmodule Nebulex.Adapters.Local do
 
   @impl true
   def init(opts) do
+    # Validate options
+    opts = __MODULE__.Options.validate!(opts)
+
     # Required options
     cache = Keyword.fetch!(opts, :cache)
     telemetry = Keyword.fetch!(opts, :telemetry)
@@ -392,17 +392,7 @@ defmodule Nebulex.Adapters.Local do
     stats_counter = Stats.init(opts)
 
     # Resolve the backend to be used
-    backend =
-      opts
-      |> Keyword.get(:backend, :ets)
-      |> case do
-        val when val in @backends ->
-          val
-
-        val ->
-          raise "expected backend: option to be one of the supported backends " <>
-                  "#{inspect(@backends)}, got: #{inspect(val)}"
-      end
+    backend = Keyword.fetch!(opts, :backend)
 
     # Internal option for max nested match specs based on number of keys
     purge_batch_size =
@@ -472,6 +462,7 @@ defmodule Nebulex.Adapters.Local do
   @impl true
   defspan put(adapter_meta, key, value, ttl, on_write, _opts) do
     entry = entry(key: key, value: value, touched: Time.now(), ttl: ttl)
+
     wrap_ok do_put(on_write, adapter_meta.meta_tab, adapter_meta.backend, entry)
   end
 
@@ -576,7 +567,7 @@ defmodule Nebulex.Adapters.Local do
   end
 
   defp entry_ttl(entries) when is_list(entries) do
-    for entry <- entries, do: entry_ttl(entry)
+    Enum.map(entries, &entry_ttl/1)
   end
 
   @impl true
@@ -747,6 +738,7 @@ defmodule Nebulex.Adapters.Local do
   defp validate_ttl(entry(key: key, touched: touched, ttl: ttl) = entry, tab, adapter_meta) do
     if Time.now() - touched >= ttl do
       true = adapter_meta.backend.delete(tab, key)
+
       wrap_error Nebulex.KeyError, key: key, cache: adapter_meta.name, reason: :expired
     else
       {:ok, entry}

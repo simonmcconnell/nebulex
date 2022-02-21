@@ -92,7 +92,7 @@ defmodule Nebulex.RPC do
       ["1", "2"]
 
   """
-  @spec multicall(node_group, Keyword.t()) :: term
+  @spec multicall(node_group, keyword) :: term
   def multicall(node_group, opts \\ []) do
     {reducer_acc, reducer_fun} = opts[:reducer] || default_reducer()
     timeout = opts[:timeout] || 5000
@@ -143,7 +143,7 @@ defmodule Nebulex.RPC do
       ["1", "1"]
 
   """
-  @spec multicall([node], module, atom, [term], Keyword.t()) :: term
+  @spec multicall([node], module, atom, [term], keyword) :: term
   def multicall(nodes, mod, fun, args, opts \\ []) do
     {reducer_acc, reducer_fun} = opts[:reducer] || default_reducer()
 

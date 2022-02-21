@@ -4,7 +4,7 @@ defmodule Nebulex.Helpers do
 
   ## API
 
-  @spec get_option(Keyword.t(), atom, binary, (any -> boolean), term) :: term
+  @spec get_option(keyword, atom, binary, (any -> boolean), term) :: term
   def get_option(opts, key, expected, valid?, default \\ nil)
       when is_list(opts) and is_atom(key) do
     value = Keyword.get(opts, key, default)
@@ -16,7 +16,7 @@ defmodule Nebulex.Helpers do
     end
   end
 
-  @spec get_boolean_option(Keyword.t(), atom, boolean) :: term
+  @spec get_boolean_option(keyword, atom, boolean) :: term
   def get_boolean_option(opts, key, default \\ false)
       when is_list(opts) and is_atom(key) and is_boolean(default) do
     value = Keyword.get(opts, key, default)

@@ -271,7 +271,7 @@ defmodule Nebulex.Cache do
   @type entries :: map | [{key, value}]
 
   @typedoc "Cache action options"
-  @type opts :: Keyword.t()
+  @type opts :: keyword
 
   @typedoc "Proxy type for base Nebulex error"
   @type nbx_error :: Nebulex.Error.t()
@@ -699,7 +699,7 @@ defmodule Nebulex.Cache do
   @doc """
   A callback executed when the cache starts or when configuration is read.
   """
-  @callback init(config :: Keyword.t()) :: {:ok, Keyword.t()} | :ignore
+  @callback init(config :: keyword) :: {:ok, keyword} | :ignore
 
   ## Nebulex.Adapter
 
@@ -728,7 +728,7 @@ defmodule Nebulex.Cache do
 
   If the `c:init/1` callback is implemented in the cache, it will be invoked.
   """
-  @callback config() :: Keyword.t()
+  @callback config() :: keyword
 
   @doc """
   Starts a supervision and return `{:ok, pid}` or just `:ok` if nothing
