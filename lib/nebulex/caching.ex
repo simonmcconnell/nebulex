@@ -781,17 +781,20 @@ if Code.ensure_loaded?(Decorator.Define) do
 
     **NOTE:** Internal purposes only.
     """
-    @spec eval_cache_evict(boolean, boolean, module, keygen, [term], on_error, fun) :: term
+    @spec eval_cache_evict(boolean, boolean, module, keygen, [term] | nil, on_error, fun) :: term
     def eval_cache_evict(before_invocation?, all_entries?, cache, keygen, keys, on_error, block_fun)
 
     def eval_cache_evict(true, all_entries?, cache, keygen, keys, on_error, block_fun) do
       _ = do_evict(all_entries?, cache, keygen, keys, on_error)
+
       block_fun.()
     end
 
     def eval_cache_evict(false, all_entries?, cache, keygen, keys, on_error, block_fun) do
       result = block_fun.()
+
       _ = do_evict(all_entries?, cache, keygen, keys, on_error)
+
       result
     end
 
@@ -818,10 +821,12 @@ if Code.ensure_loaded?(Decorator.Define) do
       case match.(result) do
         {true, value} ->
           _ = run_cmd(__MODULE__, :cache_put, [cache, key, value, opts], on_error)
+
           result
 
         true ->
           _ = run_cmd(__MODULE__, :cache_put, [cache, key, result, opts], on_error)
+
           result
 
         false ->
@@ -838,9 +843,9 @@ if Code.ensure_loaded?(Decorator.Define) do
     def cache_put(cache, key, value, opts)
 
     def cache_put(cache, {:"$keys", keys}, value, opts) do
-      entries = for k <- keys, do: {k, value}
-
-      cache.put_all(entries, opts)
+      keys
+      |> Enum.map(&{&1, value})
+      |> cache.put_all(opts)
     end
 
     def cache_put(cache, key, value, opts) do

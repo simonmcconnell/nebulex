@@ -395,14 +395,7 @@ defmodule Nebulex.Adapters.Local do
     backend = Keyword.fetch!(opts, :backend)
 
     # Internal option for max nested match specs based on number of keys
-    purge_batch_size =
-      get_option(
-        opts,
-        :purge_batch_size,
-        "an integer > 0",
-        &(is_integer(&1) and &1 > 0),
-        100
-      )
+    purge_chunk_size = Keyword.fetch!(opts, :purge_chunk_size)
 
     # Build adapter metadata
     adapter_meta = %{
@@ -413,7 +406,7 @@ defmodule Nebulex.Adapters.Local do
       meta_tab: meta_tab,
       stats_counter: stats_counter,
       backend: backend,
-      purge_batch_size: purge_batch_size,
+      purge_chunk_size: purge_chunk_size,
       started_at: DateTime.utc_now()
     }
 
@@ -489,18 +482,18 @@ defmodule Nebulex.Adapters.Local do
       on_write,
       adapter_meta.meta_tab,
       adapter_meta.backend,
-      adapter_meta.purge_batch_size,
+      adapter_meta.purge_chunk_size,
       entries
     )
     |> wrap_ok()
   end
 
-  defp do_put_all(:put, meta_tab, backend, batch_size, entries) do
-    put_entries(meta_tab, backend, entries, batch_size)
+  defp do_put_all(:put, meta_tab, backend, chunk_size, entries) do
+    put_entries(meta_tab, backend, entries, chunk_size)
   end
 
-  defp do_put_all(:put_new, meta_tab, backend, batch_size, entries) do
-    put_new_entries(meta_tab, backend, entries, batch_size)
+  defp do_put_all(:put_new, meta_tab, backend, chunk_size, entries) do
+    put_new_entries(meta_tab, backend, entries, chunk_size)
   end
 
   @impl true
@@ -532,7 +525,7 @@ defmodule Nebulex.Adapters.Local do
     _ =
       meta_tab
       |> list_gen()
-      |> do_get(key, backend)
+      |> do_fetch(key, adapter_meta)
 
     # Run the counter operation
     meta_tab
@@ -614,7 +607,7 @@ defmodule Nebulex.Adapters.Local do
     meta_tab
     |> list_gen()
     |> Enum.reduce(0, fn gen, acc ->
-      do_delete_all(adapter_meta.backend, gen, keys, adapter_meta.purge_batch_size) + acc
+      do_delete_all(adapter_meta.backend, gen, keys, adapter_meta.purge_chunk_size) + acc
     end)
   end
 
@@ -730,6 +723,7 @@ defmodule Nebulex.Adapters.Local do
 
         entries when is_list(entries) ->
           now = Time.now()
+
           {:ok, for(entry(touched: touched, ttl: ttl) = e <- entries, now - touched < ttl, do: e)}
       end
     end
@@ -753,25 +747,34 @@ defmodule Nebulex.Adapters.Local do
     backend_call(adapter_meta, :take, tab, key)
   end
 
-  defp put_entries(meta_tab, backend, entry_or_entries) do
-    meta_tab
-    |> newer_gen()
-    |> backend.insert(entry_or_entries)
+  defp put_entries(meta_tab, backend, entries, chunk_size \\ 0)
+
+  defp put_entries(
+         meta_tab,
+         backend,
+         entry(key: key, value: val, touched: touched, ttl: ttl) = entry,
+         _chunk_size
+       ) do
+    case list_gen(meta_tab) do
+      [newer_gen] ->
+        backend.insert(newer_gen, entry)
+
+      [newer_gen, older_gen] ->
+        changes = [{3, val}, {4, touched}, {5, ttl}]
+
+        with false <- backend.update_element(newer_gen, key, changes) do
+          true = backend.delete(older_gen, key)
+
+          backend.insert(newer_gen, entry)
+        end
+    end
   end
 
-  defp put_entries(meta_tab, backend, entries, batch_size \\ 0)
-
-  defp put_entries(meta_tab, backend, entries, batch_size) when is_list(entries) do
+  defp put_entries(meta_tab, backend, entries, chunk_size) when is_list(entries) do
     do_put_entries(meta_tab, backend, entries, fn older_gen ->
       keys = Enum.map(entries, fn entry(key: key) -> key end)
 
-      do_delete_all(backend, older_gen, keys, batch_size)
-    end)
-  end
-
-  defp put_entries(meta_tab, backend, entry(key: key) = entry, _batch_size) do
-    do_put_entries(meta_tab, backend, entry, fn older_gen ->
-      true = backend.delete(older_gen, key)
+      do_delete_all(backend, older_gen, keys, chunk_size)
     end)
   end
 
@@ -787,21 +790,21 @@ defmodule Nebulex.Adapters.Local do
     end
   end
 
-  defp put_new_entries(meta_tab, backend, entries, batch_size \\ 0)
+  defp put_new_entries(meta_tab, backend, entries, chunk_size \\ 0)
 
-  defp put_new_entries(meta_tab, backend, entries, batch_size) when is_list(entries) do
+  defp put_new_entries(meta_tab, backend, entries, chunk_size) when is_list(entries) do
     do_put_new_entries(meta_tab, backend, entries, fn newer_gen, older_gen ->
       with true <- backend.insert_new(older_gen, entries) do
         keys = Enum.map(entries, fn entry(key: key) -> key end)
 
-        _ = do_delete_all(backend, older_gen, keys, batch_size)
+        _ = do_delete_all(backend, older_gen, keys, chunk_size)
 
         backend.insert_new(newer_gen, entries)
       end
     end)
   end
 
-  defp put_new_entries(meta_tab, backend, entry(key: key) = entry, _batch_size) do
+  defp put_new_entries(meta_tab, backend, entry(key: key) = entry, _chunk_size) do
     do_put_new_entries(meta_tab, backend, entry, fn newer_gen, older_gen ->
       with true <- backend.insert_new(older_gen, entry) do
         true = backend.delete(older_gen, key)
@@ -828,7 +831,7 @@ defmodule Nebulex.Adapters.Local do
 
       [newer_gen, older_gen] ->
         with false <- backend.update_element(newer_gen, key, updates),
-             entry() = entry <- pop_entry(older_gen, key, false, backend) do
+             [entry() = entry] <- backend.take(older_gen, key) do
           entry =
             Enum.reduce(updates, entry, fn
               {3, value}, acc -> entry(acc, value: value)
@@ -837,21 +840,24 @@ defmodule Nebulex.Adapters.Local do
             end)
 
           backend.insert(newer_gen, entry)
+        else
+          [] -> false
+          other -> other
         end
     end
   end
 
-  defp do_delete_all(backend, tab, keys, batch_size) do
-    do_delete_all(backend, tab, keys, batch_size, 0)
+  defp do_delete_all(backend, tab, keys, chunk_size) do
+    do_delete_all(backend, tab, keys, chunk_size, 0)
   end
 
-  defp do_delete_all(backend, tab, [key], _batch_size, deleted) do
+  defp do_delete_all(backend, tab, [key], _chunk_size, deleted) do
     true = backend.delete(tab, key)
 
     deleted + 1
   end
 
-  defp do_delete_all(backend, tab, [k1, k2 | keys], batch_size, deleted) do
+  defp do_delete_all(backend, tab, [k1, k2 | keys], chunk_size, deleted) do
     k1 = if is_tuple(k1), do: {k1}, else: k1
     k2 = if is_tuple(k2), do: {k2}, else: k2
 
@@ -859,32 +865,32 @@ defmodule Nebulex.Adapters.Local do
       backend,
       tab,
       keys,
-      batch_size,
+      chunk_size,
       deleted,
       2,
       {:orelse, {:==, :"$1", k1}, {:==, :"$1", k2}}
     )
   end
 
-  defp do_delete_all(backend, tab, [], _batch_size, deleted, _count, acc) do
+  defp do_delete_all(backend, tab, [], _chunk_size, deleted, _count, acc) do
     backend.select_delete(tab, delete_all_match_spec(acc)) + deleted
   end
 
-  defp do_delete_all(backend, tab, keys, batch_size, deleted, count, acc)
-       when count >= batch_size do
+  defp do_delete_all(backend, tab, keys, chunk_size, deleted, count, acc)
+       when count >= chunk_size do
     deleted = backend.select_delete(tab, delete_all_match_spec(acc)) + deleted
 
-    do_delete_all(backend, tab, keys, batch_size, deleted)
+    do_delete_all(backend, tab, keys, chunk_size, deleted)
   end
 
-  defp do_delete_all(backend, tab, [k | keys], batch_size, deleted, count, acc) do
+  defp do_delete_all(backend, tab, [k | keys], chunk_size, deleted, count, acc) do
     k = if is_tuple(k), do: {k}, else: k
 
     do_delete_all(
       backend,
       tab,
       keys,
-      batch_size,
+      chunk_size,
       deleted,
       count + 1,
       {:orelse, acc, {:==, :"$1", k}}

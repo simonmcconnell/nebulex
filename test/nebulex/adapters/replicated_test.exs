@@ -18,7 +18,9 @@ defmodule Nebulex.Adapters.ReplicatedTest do
 
     on_exit(fn ->
       _ = Replicated.put_dynamic_cache(default_dynamic_cache)
+
       :ok = Process.sleep(100)
+
       stop_caches(node_pid_list)
     end)
 

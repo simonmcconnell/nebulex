@@ -16,18 +16,6 @@ defmodule Nebulex.Helpers do
     end
   end
 
-  @spec get_boolean_option(keyword, atom, boolean) :: term
-  def get_boolean_option(opts, key, default \\ false)
-      when is_list(opts) and is_atom(key) and is_boolean(default) do
-    value = Keyword.get(opts, key, default)
-
-    if is_boolean(value) do
-      value
-    else
-      raise ArgumentError, "expected #{key}: to be boolean, got: #{inspect(value)}"
-    end
-  end
-
   @spec assert_behaviour(module, module, binary) :: module
   def assert_behaviour(module, behaviour, msg \\ "module") do
     if behaviour in module_behaviours(module, msg) do
@@ -70,15 +58,14 @@ defmodule Nebulex.Helpers do
     end
   end
 
+  # FIXME: this is because coveralls does not mark this as covered
+  # coveralls-ignore-start
+
   @doc false
   defmacro wrap_ok(call) do
-    # FIXME: this is because coveralls does not mark this as covered
-    # coveralls-ignore-start
     quote do
       {:ok, unquote(call)}
     end
-
-    # coveralls-ignore-stop
   end
 
   @doc false
@@ -87,4 +74,6 @@ defmodule Nebulex.Helpers do
       {:error, unquote(exception).exception(unquote(opts))}
     end
   end
+
+  # coveralls-ignore-stop
 end

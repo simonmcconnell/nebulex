@@ -86,7 +86,7 @@ defmodule Nebulex.Adapter.Transaction do
       import Nebulex.Helpers
 
       @impl true
-      def transaction(%{pid: pid} = adapter_meta, opts, fun) do
+      def transaction(%{cache: cache, pid: pid} = adapter_meta, opts, fun) do
         adapter_meta
         |> do_in_transaction?()
         |> do_transaction(
@@ -95,7 +95,6 @@ defmodule Nebulex.Adapter.Transaction do
           Keyword.get(opts, :keys, []),
           Keyword.get(opts, :nodes, [node()]),
           Keyword.get(opts, :retries, :infinity),
-          adapter_meta[:name] || adapter_meta[:cache],
           fun
         )
       end
@@ -110,20 +109,21 @@ defmodule Nebulex.Adapter.Transaction do
       ## Helpers
 
       defp do_in_transaction?(%{pid: pid}) do
-        not is_nil(Process.get({pid, self()}))
+        !!Process.get({pid, self()})
       end
 
-      defp do_transaction(true, _pid, _keys, _nodes, _retries, _cache, fun) do
+      defp do_transaction(true, _pid, _name, _keys, _nodes, _retries, fun) do
         {:ok, fun.()}
       end
 
-      defp do_transaction(false, pid, keys, nodes, retries, cache, fun) do
-        ids = lock_ids(pid, keys)
+      defp do_transaction(false, pid, name, keys, nodes, retries, fun) do
+        ids = lock_ids(name, keys)
 
         case set_locks(ids, nodes, retries) do
           true ->
             try do
               _ = Process.put({pid, self()}, %{keys: keys, nodes: nodes})
+
               {:ok, fun.()}
             after
               _ = Process.delete({pid, self()})
@@ -132,7 +132,7 @@ defmodule Nebulex.Adapter.Transaction do
             end
 
           false ->
-            wrap_error Nebulex.Error, reason: {:transaction_aborted, cache, nodes}
+            wrap_error Nebulex.Error, reason: {:transaction_aborted, name, nodes}
         end
       end
 

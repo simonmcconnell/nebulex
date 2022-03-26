@@ -471,45 +471,45 @@ defmodule Nebulex.CachingTest do
 
   describe "option :cache with MFA" do
     test "cacheable annotation" do
-      refute Cache.get("foo")
+      refute Cache.get!("foo")
       assert get_mfa_cache_without_extra_args("foo") == "foo"
-      assert Cache.get("foo") == "foo"
+      assert Cache.get!("foo") == "foo"
     end
 
     test "cache_put annotation" do
       :ok = Cache.put("foo", "bar")
 
       assert update_mfa_cache_without_extra_args("bar bar") == "bar bar"
-      assert Cache.get("foo") == "bar bar"
+      assert Cache.get!("foo") == "bar bar"
     end
 
     test "cache_evict annotation" do
       :ok = Cache.put("foo", "bar")
 
       assert delete_mfa_cache_without_extra_args("bar bar") == "bar bar"
-      refute Cache.get("foo")
+      refute Cache.get!("foo")
     end
   end
 
   describe "option :cache with MFA and extra args" do
     test "cacheable annotation" do
-      refute Cache.get("foo")
+      refute Cache.get!("foo")
       assert get_mfa_cache_with_extra_args("foo") == "foo"
-      assert Cache.get("foo") == "foo"
+      assert Cache.get!("foo") == "foo"
     end
 
     test "cache_put annotation" do
       :ok = Cache.put("foo", "bar")
 
       assert update_mfa_cache_with_extra_args("bar bar") == "bar bar"
-      assert Cache.get("foo") == "bar bar"
+      assert Cache.get!("foo") == "bar bar"
     end
 
     test "cache_evict annotation" do
       :ok = Cache.put("foo", "bar")
 
       assert delete_mfa_cache_with_extra_args("bar bar") == "bar bar"
-      refute Cache.get("foo")
+      refute Cache.get!("foo")
     end
   end
 

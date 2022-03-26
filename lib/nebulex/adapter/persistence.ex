@@ -53,7 +53,6 @@ defmodule Nebulex.Adapter.Persistence do
 
       import Nebulex.Helpers
 
-      # sobelow_skip ["Traversal.FileModule"]
       @impl true
       def dump(%{cache: cache}, path, opts) do
         with_file(path, [:read, :write], fn io_dev ->
@@ -64,13 +63,13 @@ defmodule Nebulex.Adapter.Persistence do
             |> Stream.chunk_every(Keyword.get(opts, :entries_per_line, 10))
             |> Enum.each(fn entries ->
               bin = Entry.encode(entries, get_compression(opts))
+
               :ok = IO.puts(io_dev, bin)
             end)
           end
         end)
       end
 
-      # sobelow_skip ["Traversal.FileModule"]
       @impl true
       def load(%{cache: cache}, path, opts) do
         with_file(path, [:read], fn io_dev ->
@@ -79,6 +78,7 @@ defmodule Nebulex.Adapter.Persistence do
           |> Stream.map(&String.trim/1)
           |> Enum.each(fn line ->
             entries = Entry.decode(line, [:safe])
+
             cache.put_all(entries, opts)
           end)
         end)
@@ -88,6 +88,7 @@ defmodule Nebulex.Adapter.Persistence do
 
       ## Helpers
 
+      # sobelow_skip ["Traversal.FileModule"]
       defp with_file(path, modes, function) do
         case File.open(path, modes) do
           {:ok, io_device} ->
@@ -99,6 +100,7 @@ defmodule Nebulex.Adapter.Persistence do
 
           {:error, reason} ->
             reason = %File.Error{reason: reason, action: "open", path: path}
+
             wrap_error Nebulex.Error, reason: reason
         end
       end

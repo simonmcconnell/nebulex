@@ -11,6 +11,7 @@ defmodule Nebulex.Cache.Supervisor do
   """
   def start_link(cache, otp_app, adapter, opts) do
     sup_opts = if name = Keyword.get(opts, :name, cache), do: [name: name], else: []
+
     Supervisor.start_link(__MODULE__, {cache, otp_app, adapter, opts}, sup_opts)
   end
 

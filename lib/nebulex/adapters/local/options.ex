@@ -116,6 +116,15 @@ defmodule Nebulex.Adapters.Local.Options do
         This option is built internally for creating the ETS tables
         used by the local adapter underneath.
         """
+      ],
+      purge_chunk_size: [
+        required: false,
+        type: :pos_integer,
+        default: 100,
+        doc: """
+        This option is for limiting the max nested match specs based on number
+        of keys when purging the older cache generation.
+        """
       ]
     ] ++ Options.base_definition()
 

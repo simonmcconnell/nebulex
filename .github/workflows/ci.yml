@@ -25,8 +25,6 @@ jobs:
           - elixir: 1.11.x
             otp: 23.x
             inch-report: true
-          - elixir: 1.9.x
-            otp: 22.x
 
     env:
       GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
@@ -101,7 +99,7 @@ jobs:
           path: priv/plts
           key: >-
             ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-plts-${{
-            hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}-v0
+            hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}-v1
         if: ${{ matrix.dialyzer }}
 
       - name: Create PLTs

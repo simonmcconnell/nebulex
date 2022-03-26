@@ -243,12 +243,12 @@ defmodule Nebulex.LocalTest do
 
         :ok = cache.put_all(entries)
 
-        assert cache.count_all() == 10
+        assert cache.count_all!() == 10
 
-        assert cache.delete_all({:in, [2, 4, 6, 8, 10, 12]}) == 5
+        assert cache.delete_all!({:in, [2, 4, 6, 8, 10, 12]}) == 5
 
-        assert cache.count_all() == 5
-        assert cache.all() |> Enum.sort() == [1, 3, 5, 7, 9]
+        assert cache.count_all!() == 5
+        assert cache.all!() |> Enum.sort() == [1, 3, 5, 7, 9]
       end
     end
 
@@ -268,28 +268,28 @@ defmodule Nebulex.LocalTest do
       end
 
       test "put_new/3 (fallback to older generation)", %{cache: cache, name: name} do
-        assert cache.put_new("foo", "bar") == true
+        assert cache.put_new!("foo", "bar") == true
 
         _ = new_generation(cache, name)
 
         refute get_from_new(cache, name, "foo")
         assert get_from_old(cache, name, "foo") == "bar"
 
-        assert cache.put_new("foo", "bar") == false
+        assert cache.put_new!("foo", "bar") == false
 
         refute get_from_new(cache, name, "foo")
         assert get_from_old(cache, name, "foo") == "bar"
 
         _ = new_generation(cache, name)
 
-        assert cache.put_new("foo", "bar") == true
+        assert cache.put_new!("foo", "bar") == true
 
         assert get_from_new(cache, name, "foo") == "bar"
         refute get_from_old(cache, name, "foo")
       end
 
       test "replace/3 (fallback to older generation)", %{cache: cache, name: name} do
-        assert cache.replace("foo", "bar bar") == false
+        assert cache.replace!("foo", "bar bar") == false
 
         :ok = cache.put("foo", "bar")
 
@@ -298,7 +298,7 @@ defmodule Nebulex.LocalTest do
         refute get_from_new(cache, name, "foo")
         assert get_from_old(cache, name, "foo") == "bar"
 
-        assert cache.replace("foo", "bar bar") == true
+        assert cache.replace!("foo", "bar bar") == true
 
         assert get_from_new(cache, name, "foo") == "bar bar"
         refute get_from_old(cache, name, "foo")
@@ -306,7 +306,7 @@ defmodule Nebulex.LocalTest do
         _ = new_generation(cache, name)
         _ = new_generation(cache, name)
 
-        assert cache.replace("foo", "bar bar") == false
+        assert cache.replace!("foo", "bar bar") == false
       end
 
       test "put_all/2 (keys are removed from older generation)", %{cache: cache, name: name} do
@@ -332,7 +332,7 @@ defmodule Nebulex.LocalTest do
       test "put_new_all/2 (fallback to older generation)", %{cache: cache, name: name} do
         entries = Enum.map(1..100, &{&1, &1})
 
-        assert cache.put_new_all(entries) == true
+        assert cache.put_new_all!(entries) == true
 
         _ = new_generation(cache, name)
 
@@ -341,7 +341,7 @@ defmodule Nebulex.LocalTest do
           assert get_from_old(cache, name, k) == v
         end)
 
-        assert cache.put_new_all(entries) == false
+        assert cache.put_new_all!(entries) == false
 
         Enum.each(entries, fn {k, v} ->
           refute get_from_new(cache, name, k)
@@ -350,7 +350,7 @@ defmodule Nebulex.LocalTest do
 
         _ = new_generation(cache, name)
 
-        assert cache.put_new_all(entries) == true
+        assert cache.put_new_all!(entries) == true
 
         Enum.each(entries, fn {k, v} ->
           assert get_from_new(cache, name, k) == v
@@ -366,14 +366,14 @@ defmodule Nebulex.LocalTest do
         refute get_from_new(cache, name, "foo")
         assert get_from_old(cache, name, "foo") == "bar"
 
-        assert cache.expire("foo", 200) == true
+        assert cache.expire!("foo", 200) == true
 
         assert get_from_new(cache, name, "foo") == "bar"
         refute get_from_old(cache, name, "foo")
 
         :ok = Process.sleep(210)
 
-        refute cache.get("foo")
+        refute cache.get!("foo")
       end
 
       test "incr/3 (fallback to older generation)", %{cache: cache, name: name} do
@@ -384,15 +384,15 @@ defmodule Nebulex.LocalTest do
         refute get_from_new(cache, name, :counter)
         assert get_from_old(cache, name, :counter) == 0
 
-        assert cache.incr(:counter) == 1
-        assert cache.incr(:counter) == 2
+        assert cache.incr!(:counter) == 1
+        assert cache.incr!(:counter) == 2
 
         assert get_from_new(cache, name, :counter) == 2
         refute get_from_old(cache, name, :counter)
 
         :ok = Process.sleep(210)
 
-        assert cache.incr(:counter) == 1
+        assert cache.incr!(:counter) == 1
       end
 
       test "all/2 (no duplicates)", %{cache: cache, name: name} do
@@ -401,15 +401,15 @@ defmodule Nebulex.LocalTest do
 
         :ok = cache.put_all(entries)
 
-        assert cache.count_all() == 20
-        assert cache.all() |> Enum.sort() == keys
+        assert cache.count_all!() == 20
+        assert cache.all!() |> Enum.sort() == keys
 
         _ = new_generation(cache, name)
 
         :ok = cache.put_all(entries)
 
-        assert cache.count_all() == 20
-        assert cache.all() |> Enum.sort() == keys
+        assert cache.count_all!() == 20
+        assert cache.all!() |> Enum.sort() == keys
 
         _ = new_generation(cache, name)
 
@@ -418,13 +418,13 @@ defmodule Nebulex.LocalTest do
 
         :ok = cache.put_all(more_entries)
 
-        assert cache.count_all() == 30
-        assert cache.all() |> Enum.sort() == (keys ++ more_keys) |> Enum.uniq()
+        assert cache.count_all!() == 30
+        assert cache.all!() |> Enum.sort() == (keys ++ more_keys) |> Enum.uniq()
 
         _ = new_generation(cache, name)
 
-        assert cache.count_all() == 21
-        assert cache.all() |> Enum.sort() == more_keys
+        assert cache.count_all!() == 21
+        assert cache.all!() |> Enum.sort() == more_keys
       end
     end
 
