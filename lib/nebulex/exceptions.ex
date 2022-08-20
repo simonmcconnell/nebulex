@@ -95,14 +95,12 @@ defmodule Nebulex.QueryError do
 
   @doc false
   def exception(opts) do
-    message = Keyword.fetch!(opts, :message)
     query = Keyword.fetch!(opts, :query)
 
-    message = """
-    #{message}
-
-    #{inspect(query, pretty: true)}
-    """
+    message =
+      Keyword.get_lazy(opts, :message, fn ->
+        "invalid query #{inspect(query, pretty: true)}"
+      end)
 
     %__MODULE__{message: message}
   end

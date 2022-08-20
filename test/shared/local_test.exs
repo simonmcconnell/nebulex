@@ -131,7 +131,17 @@ defmodule Nebulex.LocalTest do
 
     describe "queryable:" do
       test "error because invalid query", %{cache: cache} do
-        assert {:error, %Nebulex.QueryError{}} = cache.stream(:invalid)
+        for action <- [:all, :stream] do
+          assert {:error, %Nebulex.QueryError{}} = apply(cache, action, [:invalid])
+        end
+      end
+
+      test "raise exception because invalid query", %{cache: cache} do
+        for action <- [:all!, :stream!] do
+          assert_raise Nebulex.QueryError, ~r"expected query to be one of", fn ->
+            all_or_stream(cache, action, :invalid)
+          end
+        end
       end
 
       test "ETS match_spec queries", %{cache: cache, name: name} do
@@ -153,15 +163,6 @@ defmodule Nebulex.LocalTest do
 
         for action <- [:all!, :stream!] do
           assert all_or_stream(cache, action, test_ms, page_size: 3, return: :value) == expected
-
-          msg =
-            "expected query to be one of:\n\n" <>
-              "nil | :unexpired | :expired | :ets.match_spec()\n\n" <>
-              "but got:\n\n\n:invalid_query\n"
-
-          assert_raise Nebulex.QueryError, msg, fn ->
-            all_or_stream(cache, action, :invalid_query)
-          end
         end
       end
 

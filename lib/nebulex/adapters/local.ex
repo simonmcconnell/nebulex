@@ -334,7 +334,7 @@ defmodule Nebulex.Adapters.Local do
     key: nil,
     value: nil,
     touched: nil,
-    ttl: nil
+    exp: nil
   )
 
   # Inline common instructions
@@ -454,7 +454,8 @@ defmodule Nebulex.Adapters.Local do
 
   @impl true
   defspan put(adapter_meta, key, value, ttl, on_write, _opts) do
-    entry = entry(key: key, value: value, touched: Time.now(), ttl: ttl)
+    now = Time.now()
+    entry = entry(key: key, value: value, touched: now, exp: exp(now, ttl))
 
     wrap_ok do_put(on_write, adapter_meta.meta_tab, adapter_meta.backend, entry)
   end
@@ -473,9 +474,12 @@ defmodule Nebulex.Adapters.Local do
 
   @impl true
   defspan put_all(adapter_meta, entries, ttl, on_write, _opts) do
+    now = Time.now()
+    exp = exp(now, ttl)
+
     entries =
       for {key, value} <- entries do
-        entry(key: key, value: value, touched: Time.now(), ttl: ttl)
+        entry(key: key, value: value, touched: now, exp: exp)
       end
 
     do_put_all(
@@ -517,6 +521,9 @@ defmodule Nebulex.Adapters.Local do
 
   @impl true
   defspan update_counter(adapter_meta, key, amount, ttl, default, _opts) do
+    # Current time
+    now = Time.now()
+
     # Get needed metadata
     meta_tab = adapter_meta.meta_tab
     backend = adapter_meta.backend
@@ -533,7 +540,7 @@ defmodule Nebulex.Adapters.Local do
     |> backend.update_counter(
       key,
       {3, amount},
-      entry(key: key, value: default, touched: Time.now(), ttl: ttl)
+      entry(key: key, value: default, touched: now, exp: exp(now, ttl))
     )
     |> wrap_ok()
   end
@@ -553,10 +560,10 @@ defmodule Nebulex.Adapters.Local do
     end
   end
 
-  defp entry_ttl(entry(ttl: :infinity)), do: :infinity
+  defp entry_ttl(entry(exp: :infinity)), do: :infinity
 
-  defp entry_ttl(entry(ttl: ttl, touched: touched)) do
-    ttl - (Time.now() - touched)
+  defp entry_ttl(entry(exp: exp)) do
+    exp - Time.now()
   end
 
   defp entry_ttl(entries) when is_list(entries) do
@@ -565,8 +572,10 @@ defmodule Nebulex.Adapters.Local do
 
   @impl true
   defspan expire(adapter_meta, key, ttl) do
+    now = Time.now()
+
     adapter_meta.meta_tab
-    |> update_entry(adapter_meta.backend, key, [{4, Time.now()}, {5, ttl}])
+    |> update_entry(adapter_meta.backend, key, [{4, now}, {5, exp(now, ttl)}])
     |> wrap_ok()
   end
 
@@ -699,6 +708,9 @@ defmodule Nebulex.Adapters.Local do
 
   ## Helpers
 
+  defp exp(_now, :infinity), do: :infinity
+  defp exp(now, ttl), do: now + ttl
+
   defp list_gen(meta_tab) do
     Metadata.fetch!(meta_tab, :generations)
   end
@@ -715,22 +727,22 @@ defmodule Nebulex.Adapters.Local do
         [] ->
           wrap_error Nebulex.KeyError, key: unquote(key), cache: unquote(adapter_meta).name
 
-        [entry(ttl: :infinity) = entry] ->
+        [entry(exp: :infinity) = entry] ->
           {:ok, entry}
 
-        [entry(touched: touched, ttl: ttl) = entry] ->
-          validate_ttl(entry, unquote(tab), unquote(adapter_meta))
+        [entry() = entry] ->
+          validate_exp(entry, unquote(tab), unquote(adapter_meta))
 
         entries when is_list(entries) ->
           now = Time.now()
 
-          {:ok, for(entry(touched: touched, ttl: ttl) = e <- entries, now - touched < ttl, do: e)}
+          {:ok, for(entry(touched: touched, exp: exp) = e <- entries, now < exp, do: e)}
       end
     end
   end
 
-  defp validate_ttl(entry(key: key, touched: touched, ttl: ttl) = entry, tab, adapter_meta) do
-    if Time.now() - touched >= ttl do
+  defp validate_exp(entry(key: key, exp: exp) = entry, tab, adapter_meta) do
+    if Time.now() >= exp do
       true = adapter_meta.backend.delete(tab, key)
 
       wrap_error Nebulex.KeyError, key: key, cache: adapter_meta.name, reason: :expired
@@ -752,7 +764,7 @@ defmodule Nebulex.Adapters.Local do
   defp put_entries(
          meta_tab,
          backend,
-         entry(key: key, value: val, touched: touched, ttl: ttl) = entry,
+         entry(key: key, value: val, touched: touched, exp: exp) = entry,
          _chunk_size
        ) do
     case list_gen(meta_tab) do
@@ -760,7 +772,7 @@ defmodule Nebulex.Adapters.Local do
         backend.insert(newer_gen, entry)
 
       [newer_gen, older_gen] ->
-        changes = [{3, val}, {4, touched}, {5, ttl}]
+        changes = [{3, val}, {4, touched}, {5, exp}]
 
         with false <- backend.update_element(newer_gen, key, changes) do
           true = backend.delete(older_gen, key)
@@ -792,6 +804,16 @@ defmodule Nebulex.Adapters.Local do
 
   defp put_new_entries(meta_tab, backend, entries, chunk_size \\ 0)
 
+  defp put_new_entries(meta_tab, backend, entry(key: key) = entry, _chunk_size) do
+    do_put_new_entries(meta_tab, backend, entry, fn newer_gen, older_gen ->
+      with true <- backend.insert_new(older_gen, entry) do
+        true = backend.delete(older_gen, key)
+
+        backend.insert_new(newer_gen, entry)
+      end
+    end)
+  end
+
   defp put_new_entries(meta_tab, backend, entries, chunk_size) when is_list(entries) do
     do_put_new_entries(meta_tab, backend, entries, fn newer_gen, older_gen ->
       with true <- backend.insert_new(older_gen, entries) do
@@ -800,16 +822,6 @@ defmodule Nebulex.Adapters.Local do
         _ = do_delete_all(backend, older_gen, keys, chunk_size)
 
         backend.insert_new(newer_gen, entries)
-      end
-    end)
-  end
-
-  defp put_new_entries(meta_tab, backend, entry(key: key) = entry, _chunk_size) do
-    do_put_new_entries(meta_tab, backend, entry, fn newer_gen, older_gen ->
-      with true <- backend.insert_new(older_gen, entry) do
-        true = backend.delete(older_gen, key)
-
-        backend.insert_new(newer_gen, entry)
       end
     end)
   end
@@ -836,7 +848,7 @@ defmodule Nebulex.Adapters.Local do
             Enum.reduce(updates, entry, fn
               {3, value}, acc -> entry(acc, value: value)
               {4, value}, acc -> entry(acc, touched: value)
-              {5, value}, acc -> entry(acc, ttl: value)
+              {5, value}, acc -> entry(acc, exp: value)
             end)
 
           backend.insert(newer_gen, entry)
@@ -912,7 +924,7 @@ defmodule Nebulex.Adapters.Local do
   defp validate_match_spec(spec, opts) when spec in [nil, :unexpired, :expired] do
     [
       {
-        entry(key: :"$1", value: :"$2", touched: :"$3", ttl: :"$4"),
+        entry(key: :"$1", value: :"$2", touched: :"$3", exp: :"$4"),
         if(spec = comp_match_spec(spec), do: [spec], else: []),
         ret_match_spec(opts)
       }
@@ -929,9 +941,15 @@ defmodule Nebulex.Adapters.Local do
         msg = """
         expected query to be one of:
 
-        nil | :unexpired | :expired | :ets.match_spec()
+        - `nil` - match all entries
+        - `:unexpired` - match only unexpired entries
+        - `:expired` - match only expired entries
+        - `{:in, list_of_keys}` - special form only available for delete_all
+        - `:ets.match_spec()` - ETS match spec
 
         but got:
+
+        #{inspect(spec, pretty: true)}
         """
 
         wrap_error Nebulex.QueryError, message: msg, query: spec
@@ -942,7 +960,7 @@ defmodule Nebulex.Adapters.Local do
     do: nil
 
   defp comp_match_spec(:unexpired),
-    do: {:orelse, {:==, :"$4", :infinity}, {:<, {:-, Time.now(), :"$3"}, :"$4"}}
+    do: {:orelse, {:==, :"$4", :infinity}, {:<, Time.now(), :"$4"}}
 
   defp comp_match_spec(:expired),
     do: {:not, comp_match_spec(:unexpired)}
@@ -952,7 +970,7 @@ defmodule Nebulex.Adapters.Local do
       :key -> [:"$1"]
       :value -> [:"$2"]
       {:key, :value} -> [{{:"$1", :"$2"}}]
-      :entry -> [%Entry{key: :"$1", value: :"$2", touched: :"$3", ttl: :"$4"}]
+      :entry -> [%Entry{key: :"$1", value: :"$2", touched: :"$3", exp: :"$4"}]
     end
   end
 
@@ -968,12 +986,12 @@ defmodule Nebulex.Adapters.Local do
   defp delete_all_match_spec(conds) do
     [
       {
-        entry(key: :"$1", value: :"$2", touched: :"$3", ttl: :"$4"),
+        entry(key: :"$1", value: :"$2", touched: :"$3", exp: :"$4"),
         [conds],
         [true]
       }
     ]
   end
 
-  defp test_ms, do: entry(key: 1, value: 1, touched: Time.now(), ttl: 1000)
+  defp test_ms, do: entry(key: 1, value: 1, touched: Time.now(), exp: 1000)
 end

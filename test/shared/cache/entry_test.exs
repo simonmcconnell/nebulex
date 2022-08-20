@@ -10,6 +10,7 @@ defmodule Nebulex.Cache.EntryTest do
         assert cache.fetch!(2) == 2
 
         for x <- 3..4, do: assert(cache.put(x, x * x) == :ok)
+
         assert cache.fetch!(3) == 9
         assert cache.fetch!(4) == 16
       end
@@ -34,6 +35,7 @@ defmodule Nebulex.Cache.EntryTest do
         assert cache.fetch!(2) == 2
 
         for x <- 3..4, do: assert(cache.put!(x, x * x) == :ok)
+
         assert cache.fetch!(3) == 9
         assert cache.fetch!(4) == 16
       end
@@ -146,6 +148,7 @@ defmodule Nebulex.Cache.EntryTest do
           end)
 
         assert cache.put_all(entries) == :ok
+
         for {k, v} <- entries, do: assert(cache.fetch!(k) == v)
       end
 
@@ -203,6 +206,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "retrieves a cached entry", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.fetch(x) == {:ok, x}
         end
       end
@@ -216,6 +220,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "retrieves a cached entry", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.fetch!(x) == x
         end
       end
@@ -233,6 +238,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "retrieves a cached entry", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.get(x) == {:ok, x}
         end
       end
@@ -247,6 +253,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "retrieves a cached entry", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.get!(x) == x
         end
       end
@@ -319,6 +326,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "returns the given key and removes it from cache", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.take(x) == {:ok, x}
           assert {:error, %Nebulex.KeyError{key: ^x}} = cache.take(x)
         end
@@ -350,6 +358,7 @@ defmodule Nebulex.Cache.EntryTest do
       test "returns true if key does exist in cache", %{cache: cache} do
         for x <- 1..5 do
           :ok = cache.put(x, x)
+
           assert cache.exists?(x) == {:ok, true}
         end
       end
