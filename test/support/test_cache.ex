@@ -69,6 +69,41 @@ defmodule Nebulex.TestCache do
     end
   end
 
+  defmodule StatsCache do
+    @moduledoc false
+    use Nebulex.Cache,
+      otp_app: :nebulex,
+      adapter: Nebulex.Adapters.Multilevel
+
+    defmodule L1 do
+      @moduledoc false
+      use Nebulex.Cache,
+        otp_app: :nebulex,
+        adapter: Nebulex.Adapters.Local
+    end
+
+    defmodule L2 do
+      @moduledoc false
+      use Nebulex.Cache,
+        otp_app: :nebulex,
+        adapter: Nebulex.Adapters.Replicated
+    end
+
+    defmodule L3 do
+      @moduledoc false
+      use Nebulex.Cache,
+        otp_app: :nebulex,
+        adapter: Nebulex.Adapters.Partitioned
+    end
+
+    defmodule L4 do
+      @moduledoc false
+      use Nebulex.Cache,
+        otp_app: :nebulex,
+        adapter: Nebulex.Adapters.Local
+    end
+  end
+
   ## Mocks
 
   defmodule AdapterMock do
@@ -106,6 +141,7 @@ defmodule Nebulex.TestCache do
     @impl true
     def put(_, _, _, _, _, _) do
       :ok = Process.sleep(1000)
+
       {:ok, true}
     end
 
@@ -133,6 +169,7 @@ defmodule Nebulex.TestCache do
     @impl true
     def get_all(_, _, _) do
       :ok = Process.sleep(1000)
+
       {:ok, %{}}
     end
 
@@ -144,11 +181,13 @@ defmodule Nebulex.TestCache do
     @impl true
     def execute(_, :count_all, _, _) do
       _ = Process.exit(self(), :normal)
+
       {:ok, 0}
     end
 
     def execute(_, :delete_all, _, _) do
-      Process.sleep(2000)
+      :ok = Process.sleep(2000)
+
       {:ok, 0}
     end
 

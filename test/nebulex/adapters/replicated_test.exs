@@ -1,9 +1,10 @@
 defmodule Nebulex.Adapters.ReplicatedTest do
   use Nebulex.NodeCase
+  use Mimic
+
+  # Inherit tests
   use Nebulex.CacheTest
 
-  import Mock
-  import Nebulex.CacheCase
   import Nebulex.Helpers
 
   alias Nebulex.TestCache.{Replicated, ReplicatedMock}
@@ -197,20 +198,20 @@ defmodule Nebulex.Adapters.ReplicatedTest do
 
         if Code.ensure_loaded?(:pg) do
           # errors on failed nodes should be ignored
-          with_mock Nebulex.Cache.Cluster, [:passthrough],
-            get_nodes: fn _ -> [:"node5@127.0.0.1"] ++ nodes end do
-            assert Replicated.put(:foo, :bar) == :ok
+          Nebulex.Cache.Cluster
+          |> expect(:get_nodes, fn _ -> [:"node5@127.0.0.1"] ++ nodes end)
 
-            assert_receive {^event, %{rpc_errors: 2}, meta}
-            assert meta[:adapter_meta][:cache] == Replicated
-            assert meta[:adapter_meta][:name] == :replicated_cache
-            assert meta[:function_name] == :put
+          assert Replicated.put(:foo, :bar) == :ok
 
-            assert [
-                     "node5@127.0.0.1": {:error, {:erpc, :noconnection}},
-                     "node3@127.0.0.1": {:error, %Nebulex.Error{reason: {:registry_error, _}}}
-                   ] = meta[:rpc_errors]
-          end
+          assert_receive {^event, %{rpc_errors: 2}, meta}
+          assert meta[:adapter_meta][:cache] == Replicated
+          assert meta[:adapter_meta][:name] == :replicated_cache
+          assert meta[:function_name] == :put
+
+          assert [
+                   "node5@127.0.0.1": {:error, {:erpc, :noconnection}},
+                   "node3@127.0.0.1": {:error, %Nebulex.Error{reason: {:registry_error, _}}}
+                 ] = meta[:rpc_errors]
         end
 
         wait_until(10, 1000, fn ->

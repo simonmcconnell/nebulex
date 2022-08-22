@@ -1,9 +1,11 @@
 defmodule Nebulex.Adapters.LocalEtsTest do
   use ExUnit.Case, async: true
+
+  # Inherit tests
   use Nebulex.LocalTest
   use Nebulex.CacheTest
 
-  import Nebulex.CacheCase
+  import Nebulex.CacheCase, only: [setup_with_dynamic_cache: 3]
 
   alias Nebulex.Adapter
   alias Nebulex.TestCache.Cache

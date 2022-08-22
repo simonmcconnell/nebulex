@@ -1,11 +1,12 @@
 defmodule Nebulex.Adapters.MultilevelExclusiveTest do
-  use ExUnit.Case, async: true
   use Nebulex.NodeCase
+
+  # Inherit tests
   use Nebulex.MultilevelTest
   use Nebulex.Cache.QueryableTest
   use Nebulex.Cache.TransactionTest
 
-  import Nebulex.CacheCase
+  import Nebulex.CacheCase, only: [setup_with_dynamic_cache: 3]
 
   alias Nebulex.Adapters.Local.Generation
   alias Nebulex.Cache.Cluster

@@ -23,6 +23,8 @@ defmodule Nebulex.Adapter do
   """
   @type adapter_meta :: metadata
 
+  ## Callbacks
+
   @doc """
   The callback invoked in case the adapter needs to inject code.
   """
@@ -32,6 +34,11 @@ defmodule Nebulex.Adapter do
   Initializes the adapter supervision tree by returning the children.
   """
   @callback init(config :: keyword) :: {:ok, :supervisor.child_spec(), adapter_meta}
+
+  # Define optional callbacks
+  @optional_callbacks __before_compile__: 1
+
+  ## API
 
   @doc """
   Executes the function `fun` passing as parameters the adapter and metadata

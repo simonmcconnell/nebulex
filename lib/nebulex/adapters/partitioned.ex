@@ -451,8 +451,9 @@ defmodule Nebulex.Adapters.Partitioned do
   defspan put(adapter_meta, key, value, _ttl, on_write, opts) do
     case on_write do
       :put ->
-        :ok = call(adapter_meta, key, :put, [key, value, opts], opts)
-        {:ok, true}
+        with :ok <- call(adapter_meta, key, :put, [key, value, opts], opts) do
+          {:ok, true}
+        end
 
       :put_new ->
         call(adapter_meta, key, :put_new, [key, value, opts], opts)
@@ -591,7 +592,9 @@ defmodule Nebulex.Adapters.Partitioned do
 
   @impl true
   defspan transaction(adapter_meta, opts, fun) do
-    super(adapter_meta, Keyword.put(opts, :nodes, Cluster.get_nodes(adapter_meta.name)), fun)
+    nodes = Keyword.put_new_lazy(opts, :nodes, fn -> Cluster.get_nodes(adapter_meta.name) end)
+
+    super(adapter_meta, nodes, fun)
   end
 
   @impl true
@@ -659,10 +662,12 @@ defmodule Nebulex.Adapters.Partitioned do
     Enum.reduce(enum, %{}, fn
       {key, _} = entry, acc ->
         node = get_node(adapter_meta, key)
+
         Map.put(acc, node, [entry | Map.get(acc, node, [])])
 
       key, acc ->
         node = get_node(adapter_meta, key)
+
         Map.put(acc, node, [key | Map.get(acc, node, [])])
     end)
   end

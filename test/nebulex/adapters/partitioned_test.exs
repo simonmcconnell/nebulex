@@ -1,8 +1,9 @@
 defmodule Nebulex.Adapters.PartitionedTest do
   use Nebulex.NodeCase
+
+  # Inherit tests
   use Nebulex.CacheTest
 
-  import Nebulex.CacheCase
   import Nebulex.Helpers
 
   alias Nebulex.Adapter
@@ -147,11 +148,13 @@ defmodule Nebulex.Adapters.PartitionedTest do
 
       Partitioned.with_dynamic_cache(name, fn ->
         :ok = Partitioned.leave_cluster()
+
         assert Partitioned.nodes() == cluster -- [node()]
       end)
 
       Partitioned.with_dynamic_cache(name, fn ->
         :ok = Partitioned.join_cluster()
+
         assert Partitioned.nodes() == cluster
       end)
     end
@@ -269,6 +272,7 @@ defmodule Nebulex.Adapters.PartitionedTest do
     node = Partitioned.get_node(key)
     remote_pid = :rpc.call(node, Process, :whereis, [@cache_name])
     :ok = :rpc.call(node, Supervisor, :stop, [remote_pid])
+
     node
   end
 end

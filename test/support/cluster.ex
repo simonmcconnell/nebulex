@@ -19,9 +19,11 @@ defmodule Nebulex.Cluster do
 
   def spawn_node(node_host) do
     {:ok, node} = :slave.start(to_charlist("127.0.0.1"), node_name(node_host), inet_loader_args())
+
     _ = add_code_paths(node)
     _ = transfer_configuration(node)
     _ = ensure_applications_started(node)
+
     {:ok, node}
   end
 
@@ -35,6 +37,7 @@ defmodule Nebulex.Cluster do
 
   defp allow_boot(host) do
     {:ok, ipv4} = :inet.parse_ipv4_address(host)
+
     :erl_boot_server.add_slave(ipv4)
   end
 

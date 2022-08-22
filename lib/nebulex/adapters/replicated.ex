@@ -447,15 +447,17 @@ defmodule Nebulex.Adapters.Replicated do
   end
 
   defp do_execute(%{name: name} = adapter_meta, :delete_all, query, opts) do
+    nodes = Cluster.get_nodes(name)
+
     # It is blocked until ongoing write operations finish (if there is any).
     # Similarly, while it is executed, all later write-like operations are
     # blocked until it finishes.
     :global.trans(
       {name, self()},
       fn ->
-        multicall(adapter_meta, :delete_all, [query, opts], opts)
+        multicall(adapter_meta, nodes, :delete_all, [query, opts], opts)
       end,
-      Cluster.get_nodes(name)
+      nodes
     )
   end
 
@@ -484,7 +486,9 @@ defmodule Nebulex.Adapters.Replicated do
 
   @impl true
   defspan transaction(adapter_meta, opts, fun) do
-    super(adapter_meta, Keyword.put(opts, :nodes, Cluster.get_nodes(adapter_meta.name)), fun)
+    nodes = Keyword.put_new_lazy(opts, :nodes, fn -> Cluster.get_nodes(adapter_meta.name) end)
+
+    super(adapter_meta, nodes, fun)
   end
 
   @impl true
@@ -554,14 +558,14 @@ defmodule Nebulex.Adapters.Replicated do
         # to ensure proper replication
         with {:ok, res} <-
                transaction(adapter_meta, [keys: keys, nodes: nodes], fn ->
-                 multicall(adapter_meta, action, args, opts)
+                 multicall(adapter_meta, nodes, action, args, opts)
                end) do
           res
         end
     end
   end
 
-  defp multicall(%{name: name} = meta, action, args, opts) do
+  defp multicall(meta, nodes, action, args, opts) do
     # Run the command locally first and run replication only if success
     case with_dynamic_cache(meta, action, args) do
       {:error, _} = error ->
@@ -571,7 +575,7 @@ defmodule Nebulex.Adapters.Replicated do
         # Run the command on the remote nodes
         {ok_nodes, error_nodes} =
           RPC.multicall(
-            Cluster.get_nodes(name) -- [node()],
+            nodes -- [node()],
             __MODULE__,
             :with_dynamic_cache,
             [meta, action, args],
@@ -589,11 +593,13 @@ defmodule Nebulex.Adapters.Replicated do
 
   defp handle_rpc_multicall({res, {[], ignored_errors}}, meta, action) do
     _ = dispatch_replication_error(meta, action, ignored_errors)
+
     hd(res)
   end
 
   defp handle_rpc_multicall({_responses, {filtered_errors, ignored_errors}}, meta, action) do
     _ = dispatch_replication_error(meta, action, ignored_errors)
+
     wrap_error Nebulex.Error, reason: {:rpc_multicall_error, filtered_errors}, module: RPC
   end
 

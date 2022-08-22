@@ -54,13 +54,13 @@ defmodule Nebulex.MixProject do
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
 
       # Test & Code Analysis
-      {:ex2ms, "~> 1.6", only: :test},
-      {:mock, "~> 0.3", only: :test},
       {:excoveralls, "~> 0.14", only: :test},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.11", only: [:dev, :test], runtime: false},
       {:stream_data, "~> 0.5", only: [:dev, :test]},
+      {:ex2ms, "~> 1.6", only: :test},
+      {:mimic, "~> 1.7", only: :test},
 
       # Benchmark Test
       {:benchee, "~> 1.1", only: [:dev, :test]},
@@ -114,7 +114,7 @@ defmodule Nebulex.MixProject do
 
   defp dialyzer do
     [
-      plt_add_apps: [:shards, :mix, :telemetry],
+      plt_add_apps: [:shards, :mix, :telemetry, :ex_unit],
       plt_file: {:no_warn, "priv/plts/" <> plt_file_name()},
       flags: [
         :unmatched_returns,

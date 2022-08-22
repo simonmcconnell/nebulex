@@ -144,6 +144,12 @@ defmodule Nebulex.LocalTest do
         end
       end
 
+      test "default query error message" do
+        assert_raise Nebulex.QueryError, "invalid query :invalid", fn ->
+          raise Nebulex.QueryError, query: :invalid
+        end
+      end
+
       test "ETS match_spec queries", %{cache: cache, name: name} do
         values = cache_put(cache, 1..5, &(&1 * 2))
         _ = new_generation(cache, name)

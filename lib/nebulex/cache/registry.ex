@@ -45,14 +45,18 @@ defmodule Nebulex.Cache.Registry do
   @impl true
   def handle_call({:register, pid, value}, _from, state) do
     ref = Process.monitor(pid)
+
     :ok = :persistent_term.put({__MODULE__, pid}, {ref, value})
+
     {:reply, :ok, state}
   end
 
   @impl true
   def handle_info({:DOWN, ref, _type, pid, _reason}, state) do
     {^ref, _} = :persistent_term.get({__MODULE__, pid})
+
     _ = :persistent_term.erase({__MODULE__, pid})
+
     {:noreply, state}
   end
 end

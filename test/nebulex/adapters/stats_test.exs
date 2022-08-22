@@ -1,42 +1,10 @@
 defmodule Nebulex.Adapters.StatsTest do
-  use ExUnit.Case
+  use ExUnit.Case, asyc: true
+  use Mimic
 
-  import Mock
   import Nebulex.CacheCase
 
-  alias Nebulex.Cache.Stats
-
-  ## Shared cache
-
-  defmodule Cache do
-    use Nebulex.Cache,
-      otp_app: :nebulex,
-      adapter: Nebulex.Adapters.Multilevel
-
-    defmodule L1 do
-      use Nebulex.Cache,
-        otp_app: :nebulex,
-        adapter: Nebulex.Adapters.Local
-    end
-
-    defmodule L2 do
-      use Nebulex.Cache,
-        otp_app: :nebulex,
-        adapter: Nebulex.Adapters.Replicated
-    end
-
-    defmodule L3 do
-      use Nebulex.Cache,
-        otp_app: :nebulex,
-        adapter: Nebulex.Adapters.Partitioned
-    end
-
-    defmodule L4 do
-      use Nebulex.Cache,
-        otp_app: :nebulex,
-        adapter: Nebulex.Adapters.Local
-    end
-  end
+  alias Nebulex.TestCache.StatsCache, as: Cache
 
   ## Shared constants
 
@@ -49,17 +17,17 @@ defmodule Nebulex.Adapters.StatsTest do
     ]
   ]
 
-  @event [:nebulex, :adapters, :stats_test, :cache, :stats]
+  @event [:nebulex, :test_cache, :stats_cache, :stats]
 
   ## Tests
 
   describe "(multilevel) stats/0" do
-    alias Cache.L1
-
     setup_with_cache(Cache, [stats: true] ++ @config)
 
-    test_with_mock "returns an error", L1.__adapter__(), [:passthrough],
-      stats: fn _ -> {:error, %Nebulex.Error{reason: :error}} end do
+    test "returns an error" do
+      Cache.L1
+      |> Mimic.expect(:stats, fn -> {:error, %Nebulex.Error{reason: :error}} end)
+
       assert Cache.stats() == {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
     end
 
@@ -329,10 +297,10 @@ defmodule Nebulex.Adapters.StatsTest do
     test "emits a telemetry event when called" do
       with_telemetry_handler(__MODULE__, [@event], fn ->
         :ok = Cache.dispatch_stats(metadata: %{node: node()})
+
         node = node()
 
-        assert_receive {@event, measurements,
-                        %{cache: Nebulex.Adapters.StatsTest.Cache, node: ^node}}
+        assert_receive {@event, measurements, %{cache: Cache, node: ^node}}
 
         assert measurements == %{
                  l1: %{hits: 0, misses: 0, writes: 0, evictions: 0, expirations: 0, updates: 0},
@@ -342,8 +310,10 @@ defmodule Nebulex.Adapters.StatsTest do
       end)
     end
 
-    test_with_mock "returns an error", Cache.__adapter__(), [:passthrough],
-      stats: fn _ -> {:error, %Nebulex.Error{reason: :error}} end do
+    test "returns an error" do
+      Cache.L1
+      |> Mimic.expect(:stats, fn -> {:error, %Nebulex.Error{reason: :error}} end)
+
       assert Cache.dispatch_stats() ==
                {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
     end

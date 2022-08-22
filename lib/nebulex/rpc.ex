@@ -103,6 +103,7 @@ defmodule Nebulex.RPC do
     |> Enum.reduce(reducer_acc, fn {req_id, group}, acc ->
       try do
         res = :erpc.receive_response(req_id, timeout)
+
         reducer_fun.({:ok, res}, group, acc)
       rescue
         exception in ErlangError ->

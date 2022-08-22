@@ -341,6 +341,7 @@ defmodule Nebulex.Cache do
       @impl true
       def config do
         {:ok, config} = Nebulex.Cache.Supervisor.runtime_config(__MODULE__, @otp_app, [])
+
         config
       end
 
