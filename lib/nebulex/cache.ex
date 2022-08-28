@@ -64,7 +64,8 @@ defmodule Nebulex.Cache do
 
     * `[:nebulex, :cache, :init]` - it is dispatched whenever a cache starts.
       The measurement is a single `system_time` entry in native unit. The
-      metadata is the `:cache` and all initialization options under `:opts`.
+      metadata is the `:cache`, the `:name`, and all initialization options
+      under `:opts`.
 
   ### Adapter-specific events
 
@@ -390,6 +391,7 @@ defmodule Nebulex.Cache do
 
         try do
           _ = put_dynamic_cache(name)
+
           fun.()
         after
           _ = put_dynamic_cache(default_dynamic_cache)

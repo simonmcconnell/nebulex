@@ -14,11 +14,12 @@ defmodule Nebulex.Adapter do
   @typedoc """
   The metadata returned by the adapter `c:init/1`.
 
-  It must be a map and Nebulex itself will always inject two keys into
-  the meta:
+  It must be a map and Nebulex itself will always inject
+  the following keys into the meta:
 
     * `:cache` - The cache module.
-    * `:pid` - The PID returned by the child spec returned in `c:init/1`
+    * `:pid` - The PID returned by the child spec returned in `c:init/1`.
+    * `:adapter` - The defined cache adapter.
 
   """
   @type adapter_meta :: metadata
@@ -40,16 +41,32 @@ defmodule Nebulex.Adapter do
 
   ## API
 
+  # Inline common instructions
+  @compile {:inline, lookup_meta: 1}
+
+  @doc """
+  Returns the adapter metadata from its `c:init/1` callback.
+
+  It expects a process name of the cache. The name is either
+  an atom or a PID. For a given cache, you often want to call
+  this function based on the dynamic cache:
+
+      Nebulex.Adapter.lookup_meta(cache.get_dynamic_cache())
+
+  """
+  @spec lookup_meta(atom | pid) :: {:ok, adapter_meta} | {:error, Nebulex.Error.t()}
+  defdelegate lookup_meta(name_or_pid), to: Nebulex.Cache.Registry, as: :lookup
+
   @doc """
   Executes the function `fun` passing as parameters the adapter and metadata
   (from the `c:init/1` callback) associated with the given cache `name_or_pid`.
 
   It expects a name or a PID representing the cache.
   """
-  @spec with_meta(atom | pid, (module, adapter_meta -> term)) :: term | {:error, Nebulex.Error.t()}
+  @spec with_meta(atom | pid, (adapter_meta -> term)) :: term | {:error, Nebulex.Error.t()}
   def with_meta(name_or_pid, fun) do
-    with {:ok, {adapter, adapter_meta}} <- Nebulex.Cache.Registry.lookup(name_or_pid) do
-      fun.(adapter, adapter_meta)
+    with {:ok, adapter_meta} <- lookup_meta(name_or_pid) do
+      fun.(adapter_meta)
     end
   end
 

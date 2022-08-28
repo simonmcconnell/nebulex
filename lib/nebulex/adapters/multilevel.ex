@@ -230,9 +230,7 @@ defmodule Nebulex.Adapters.Multilevel do
       A convenience function to get the cache model.
       """
       def model(name \\ __MODULE__) do
-        with_meta(name, fn _adapter, %{model: model} ->
-          model
-        end)
+        with_meta(name, & &1.model)
       end
     end
   end

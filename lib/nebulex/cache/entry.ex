@@ -12,7 +12,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.fetch/2`.
   """
   def fetch(name, key, opts) do
-    Adapter.with_meta(name, & &1.fetch(&2, key, opts))
+    Adapter.with_meta(name, & &1.adapter.fetch(&1, key, opts))
   end
 
   @doc """
@@ -26,7 +26,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.get/3`.
   """
   def get(name, key, default, opts) do
-    Adapter.with_meta(name, &do_get(&1, &2, key, default, opts))
+    Adapter.with_meta(name, &do_get(&1.adapter, &1, key, default, opts))
   end
 
   defp do_get(adapter, adapter_meta, key, default, opts) do
@@ -52,7 +52,7 @@ defmodule Nebulex.Cache.Entry do
   end
 
   def get_all(name, keys, opts) do
-    Adapter.with_meta(name, & &1.get_all(&2, keys, opts))
+    Adapter.with_meta(name, & &1.adapter.get_all(&1, keys, opts))
   end
 
   @doc """
@@ -109,7 +109,7 @@ defmodule Nebulex.Cache.Entry do
   end
 
   defp do_put(name, key, value, on_write, opts) do
-    Adapter.with_meta(name, & &1.put(&2, key, value, get_ttl(opts), on_write, opts))
+    Adapter.with_meta(name, & &1.adapter.put(&1, key, value, get_ttl(opts), on_write, opts))
   end
 
   @doc """
@@ -127,6 +127,7 @@ defmodule Nebulex.Cache.Entry do
   """
   def put_all!(name, entries, opts) do
     _ = unwrap_or_raise do_put_all(name, entries, :put, opts)
+
     :ok
   end
 
@@ -153,14 +154,14 @@ defmodule Nebulex.Cache.Entry do
   end
 
   def do_put_all(name, entries, on_write, opts) do
-    Adapter.with_meta(name, & &1.put_all(&2, entries, get_ttl(opts), on_write, opts))
+    Adapter.with_meta(name, & &1.adapter.put_all(&1, entries, get_ttl(opts), on_write, opts))
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.delete/2`.
   """
   def delete(name, key, opts) do
-    Adapter.with_meta(name, & &1.delete(&2, key, opts))
+    Adapter.with_meta(name, & &1.adapter.delete(&1, key, opts))
   end
 
   @doc """
@@ -174,7 +175,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.take/2`.
   """
   def take(name, key, opts) do
-    Adapter.with_meta(name, & &1.take(&2, key, opts))
+    Adapter.with_meta(name, & &1.adapter.take(&1, key, opts))
   end
 
   @doc """
@@ -191,14 +192,14 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.exists?/1`.
   """
   def exists?(name, key) do
-    Adapter.with_meta(name, & &1.exists?(&2, key))
+    Adapter.with_meta(name, & &1.adapter.exists?(&1, key))
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.get_and_update/3`.
   """
   def get_and_update(name, key, fun, opts) when is_function(fun, 1) do
-    Adapter.with_meta(name, fn adapter, adapter_meta ->
+    Adapter.with_meta(name, fn %{adapter: adapter} = adapter_meta ->
       with {:ok, current} <- do_get(adapter, adapter_meta, key, nil, opts) do
         {:ok, eval_get_and_update_function(current, adapter, adapter_meta, key, opts, fun)}
       end
@@ -239,7 +240,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.update/4`.
   """
   def update(name, key, initial, fun, opts) do
-    Adapter.with_meta(name, fn adapter, adapter_meta ->
+    Adapter.with_meta(name, fn %{adapter: adapter} = adapter_meta ->
       value =
         case adapter.fetch(adapter_meta, key, opts) do
           {:ok, value} -> fun.(value)
@@ -280,7 +281,10 @@ defmodule Nebulex.Cache.Entry do
           0
       end
 
-    Adapter.with_meta(name, & &1.update_counter(&2, key, amount, get_ttl(opts), default, opts))
+    Adapter.with_meta(
+      name,
+      & &1.adapter.update_counter(&1, key, amount, get_ttl(opts), default, opts)
+    )
   end
 
   def incr(_cache, _key, amount, _opts) do
@@ -318,7 +322,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.ttl/1`.
   """
   def ttl(name, key) do
-    Adapter.with_meta(name, & &1.ttl(&2, key))
+    Adapter.with_meta(name, & &1.adapter.ttl(&1, key))
   end
 
   @doc """
@@ -339,7 +343,7 @@ defmodule Nebulex.Cache.Entry do
       (Time.timeout?(ttl) && ttl) ||
         raise ArgumentError, "expected ttl to be a valid timeout, got: #{inspect(ttl)}"
 
-    Adapter.with_meta(name, & &1.expire(&2, key, ttl))
+    Adapter.with_meta(name, & &1.adapter.expire(&1, key, ttl))
   end
 
   @doc """
@@ -353,7 +357,7 @@ defmodule Nebulex.Cache.Entry do
   Implementation for `c:Nebulex.Cache.touch/1`.
   """
   def touch(name, key) do
-    Adapter.with_meta(name, & &1.touch(&2, key))
+    Adapter.with_meta(name, & &1.adapter.touch(&1, key))
   end
 
   @doc """

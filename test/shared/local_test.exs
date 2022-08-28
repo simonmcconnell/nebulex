@@ -17,17 +17,6 @@ defmodule Nebulex.LocalTest do
       end
     end
 
-    describe "registry" do
-      test "lookup/1 error" do
-        assert Nebulex.Cache.Registry.lookup(self()) ==
-                 {:error,
-                  %Nebulex.Error{
-                    module: Nebulex.Error,
-                    reason: {:registry_error, self()}
-                  }}
-      end
-    end
-
     describe "error" do
       test "on init because invalid backend", %{cache: cache} do
         assert {:error, {%ArgumentError{message: msg}, _}} =
@@ -43,7 +32,7 @@ defmodule Nebulex.LocalTest do
                  {:error,
                   %Nebulex.Error{
                     module: Nebulex.Error,
-                    reason: {:registry_error, name}
+                    reason: {:registry_lookup_error, name}
                   }}
 
         msg = ~r"could not lookup Nebulex cache"
@@ -527,7 +516,7 @@ defmodule Nebulex.LocalTest do
     end
 
     defp get_from(gen, name, key) do
-      Adapter.with_meta(name, fn _, %{backend: backend} ->
+      Adapter.with_meta(name, fn %{backend: backend} ->
         case backend.lookup(gen, key) do
           [] -> nil
           [{_, ^key, val, _, _}] -> val

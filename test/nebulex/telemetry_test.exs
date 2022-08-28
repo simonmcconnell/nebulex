@@ -106,7 +106,7 @@ defmodule Nebulex.TelemetryTest do
 
     test "raise: emits start and exception events" do
       with_telemetry_handler(__MODULE__, @exception_events, fn ->
-        Adapter.with_meta(Cache.L3.Primary, fn _, meta ->
+        Adapter.with_meta(Cache.L3.Primary, fn meta ->
           true = :ets.delete(meta.meta_tab)
         end)
 
@@ -157,7 +157,7 @@ defmodule Nebulex.TelemetryTest do
 
     test "telemetry set to false" do
       for cache <- @caches do
-        Adapter.with_meta(cache, fn _, meta ->
+        Adapter.with_meta(cache, fn meta ->
           assert meta.telemetry == false
         end)
       end

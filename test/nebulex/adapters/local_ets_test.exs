@@ -14,7 +14,7 @@ defmodule Nebulex.Adapters.LocalEtsTest do
 
   describe "ets" do
     test "backend", %{name: name} do
-      Adapter.with_meta(name, fn _, meta ->
+      Adapter.with_meta(name, fn meta ->
         assert meta.backend == :ets
       end)
     end

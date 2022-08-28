@@ -11,7 +11,7 @@ defmodule Nebulex.Cache.Stats do
   Implementation for `c:Nebulex.Cache.stats/0`.
   """
   def stats(name) do
-    Adapter.with_meta(name, & &1.stats(&2))
+    Adapter.with_meta(name, & &1.adapter.stats(&1))
   end
 
   @doc """
@@ -26,7 +26,7 @@ defmodule Nebulex.Cache.Stats do
     Implementation for `c:Nebulex.Cache.dispatch_stats/1`.
     """
     def dispatch_stats(name, opts \\ []) do
-      Adapter.with_meta(name, fn adapter, meta ->
+      Adapter.with_meta(name, fn %{adapter: adapter} = meta ->
         with true <- is_list(meta.telemetry_prefix),
              {:ok, %Nebulex.Stats{} = info} <- adapter.stats(meta) do
           :telemetry.execute(

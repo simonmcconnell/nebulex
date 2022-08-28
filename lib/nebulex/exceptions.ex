@@ -24,7 +24,7 @@ defmodule Nebulex.Error do
 
   ## Helpers
 
-  def format_error({:registry_error, name_or_pid}) do
+  def format_error({:registry_lookup_error, name_or_pid}) do
     "could not lookup Nebulex cache #{inspect(name_or_pid)} because it was " <>
       "not started or it does not exist"
   end

@@ -51,8 +51,8 @@ defmodule Nebulex.Adapters.PartitionedTest do
 
   describe "c:init/1" do
     test "initializes the primary store metadata" do
-      Adapter.with_meta(PartitionedCache.Primary, fn adapter, meta ->
-        assert adapter == Nebulex.Adapters.Local
+      Adapter.with_meta(PartitionedCache.Primary, fn meta ->
+        assert meta.adapter == Nebulex.Adapters.Local
         assert meta.backend == :shards
       end)
     end

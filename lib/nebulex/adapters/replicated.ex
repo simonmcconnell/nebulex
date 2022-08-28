@@ -613,7 +613,8 @@ defmodule Nebulex.Adapters.Replicated do
         # The key was not found on remote node, ignore the error
         {acc1, [error | acc2]}
 
-      {_node, {:error, %Nebulex.Error{reason: {:registry_error, _}}}} = error, {acc1, acc2} ->
+      {_node, {:error, %Nebulex.Error{reason: {:registry_lookup_error, _}}}} = error,
+      {acc1, acc2} ->
         # The cache was not found in the remote node, maybe it was stopped and
         # :pg ("Process Groups") is not updated yet, then ignore the error
         {acc1, [error | acc2]}
@@ -722,7 +723,7 @@ defmodule Nebulex.Adapters.Replicated.Bootstrap do
   def handle_info(:timeout, %{name: name, retries: retries} = state)
       when retries < @max_retries do
     with {:error, _} <-
-           Adapter.with_meta(name, fn _adapter, adapter_meta ->
+           Adapter.with_meta(name, fn adapter_meta ->
              handle_info(:timeout, adapter_meta)
            end) do
       {:noreply, %{state | retries: retries + 1}, 1}

@@ -210,7 +210,7 @@ defmodule Nebulex.Adapters.ReplicatedTest do
 
           assert [
                    "node5@127.0.0.1": {:error, {:erpc, :noconnection}},
-                   "node3@127.0.0.1": {:error, %Nebulex.Error{reason: {:registry_error, _}}}
+                   "node3@127.0.0.1": {:error, %Nebulex.Error{reason: {:registry_lookup_error, _}}}
                  ] = meta[:rpc_errors]
         end
 

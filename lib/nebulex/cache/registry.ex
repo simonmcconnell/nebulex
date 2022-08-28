@@ -12,9 +12,9 @@ defmodule Nebulex.Cache.Registry do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  @spec register(pid, term) :: :ok
-  def register(pid, value) when is_pid(pid) do
-    GenServer.call(__MODULE__, {:register, pid, value})
+  @spec register(pid, atom, term) :: :ok
+  def register(pid, name, value) when is_pid(pid) and is_atom(name) do
+    GenServer.call(__MODULE__, {:register, pid, name, value})
   end
 
   @spec lookup(atom | pid) :: {:ok, term} | {:error, Nebulex.Error.t()}
@@ -24,14 +24,21 @@ defmodule Nebulex.Cache.Registry do
     if pid = GenServer.whereis(name) do
       lookup(pid)
     else
-      wrap_error Nebulex.Error, reason: {:registry_error, name}
+      wrap_error Nebulex.Error, reason: {:registry_lookup_error, name}
     end
   end
 
   def lookup(pid) when is_pid(pid) do
     case :persistent_term.get({__MODULE__, pid}, nil) do
-      {_ref, value} -> {:ok, value}
-      nil -> wrap_error Nebulex.Error, reason: {:registry_error, pid}
+      {_ref, _name, value} -> {:ok, value}
+      nil -> wrap_error Nebulex.Error, reason: {:registry_lookup_error, pid}
+    end
+  end
+
+  @spec all_running() :: [atom | pid]
+  def all_running do
+    for {{__MODULE__, pid}, {_ref, name, _value}} <- :persistent_term.get() do
+      name || pid
     end
   end
 
@@ -39,24 +46,30 @@ defmodule Nebulex.Cache.Registry do
 
   @impl true
   def init(:ok) do
-    {:ok, :ok}
+    {:ok, nil}
   end
 
   @impl true
-  def handle_call({:register, pid, value}, _from, state) do
+  def handle_call({:register, pid, name, value}, _from, state) do
+    # Monitor the process so that when it is down it can be removed
     ref = Process.monitor(pid)
 
-    :ok = :persistent_term.put({__MODULE__, pid}, {ref, value})
+    # Store the process data
+    :ok = :persistent_term.put({__MODULE__, pid}, {ref, name, value})
 
+    # Reply with success
     {:reply, :ok, state}
   end
 
   @impl true
   def handle_info({:DOWN, ref, _type, pid, _reason}, state) do
-    {^ref, _} = :persistent_term.get({__MODULE__, pid})
+    # Check the process reference
+    {^ref, _, _} = :persistent_term.get({__MODULE__, pid})
 
+    # Remove the process data
     _ = :persistent_term.erase({__MODULE__, pid})
 
+    # Continue
     {:noreply, state}
   end
 end

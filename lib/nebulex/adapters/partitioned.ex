@@ -349,7 +349,7 @@ defmodule Nebulex.Adapters.Partitioned do
       A convenience function to get the node of the given `key`.
       """
       def get_node(key) do
-        with_meta(get_dynamic_cache(), fn _adapter, %{name: name, keyslot: keyslot} ->
+        with_meta(get_dynamic_cache(), fn %{name: name, keyslot: keyslot} ->
           Cluster.get_node(name, key, keyslot)
         end)
       end
