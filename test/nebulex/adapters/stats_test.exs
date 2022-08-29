@@ -22,7 +22,7 @@ defmodule Nebulex.Adapters.StatsTest do
   ## Tests
 
   describe "(multilevel) stats/0" do
-    setup_with_cache(Cache, [stats: true] ++ @config)
+    setup_with_cache Cache, [stats: true] ++ @config
 
     test "returns an error" do
       Cache.L1
@@ -126,7 +126,7 @@ defmodule Nebulex.Adapters.StatsTest do
   describe "(replicated) stats/0" do
     alias Cache.L2, as: Replicated
 
-    setup_with_cache(Replicated, stats: true)
+    setup_with_cache Replicated, stats: true
 
     test "hits and misses" do
       :ok = Replicated.put_all!(a: 1, b: 2)
@@ -143,7 +143,7 @@ defmodule Nebulex.Adapters.StatsTest do
   describe "(partitioned) stats/0" do
     alias Cache.L3, as: Partitioned
 
-    setup_with_cache(Partitioned, stats: true)
+    setup_with_cache Partitioned, stats: true
 
     test "hits and misses" do
       :ok = Partitioned.put_all!(a: 1, b: 2)
@@ -158,15 +158,13 @@ defmodule Nebulex.Adapters.StatsTest do
   end
 
   describe "disabled stats in a cache level" do
-    setup_with_cache(
-      Cache,
-      [stats: true] ++
-        Keyword.update!(
-          @config,
-          :levels,
-          &(&1 ++ [{Cache.L4, gc_interval: :timer.hours(1), stats: false}])
-        )
-    )
+    @updated_config Keyword.update!(
+                      @config,
+                      :levels,
+                      &(&1 ++ [{Cache.L4, gc_interval: :timer.hours(1), stats: false}])
+                    )
+
+    setup_with_cache Cache, [stats: true] ++ @updated_config
 
     test "ignored when returning stats" do
       measurements = Cache.stats!().measurements
@@ -223,7 +221,7 @@ defmodule Nebulex.Adapters.StatsTest do
     alias Cache.L2.Primary, as: L2Primary
     alias Cache.L3.Primary, as: L3Primary
 
-    setup_with_cache(Cache, [stats: true] ++ @config)
+    setup_with_cache Cache, [stats: true] ++ @config
 
     test "updates evictions" do
       :ok = Cache.put_all!(a: 1, b: 2, c: 3)
@@ -276,7 +274,7 @@ defmodule Nebulex.Adapters.StatsTest do
   end
 
   describe "disabled stats:" do
-    setup_with_cache(Cache, @config)
+    setup_with_cache Cache, @config
 
     test "stats/0 returns nil" do
       assert_raise Nebulex.Error, ~r"stats disabled or not supported by the cache", fn ->
@@ -292,7 +290,7 @@ defmodule Nebulex.Adapters.StatsTest do
   end
 
   describe "dispatch_stats/1" do
-    setup_with_cache(Cache, [stats: true] ++ @config)
+    setup_with_cache Cache, [stats: true] ++ @config
 
     test "emits a telemetry event when called" do
       with_telemetry_handler(__MODULE__, [@event], fn ->
@@ -320,11 +318,9 @@ defmodule Nebulex.Adapters.StatsTest do
   end
 
   describe "dispatch_stats/1 with dynamic cache" do
-    setup_with_dynamic_cache(
-      Cache,
-      :stats_with_dispatch,
-      [telemetry_prefix: [:my_event], stats: true] ++ @config
-    )
+    setup_with_dynamic_cache Cache,
+                             :stats_with_dispatch,
+                             [telemetry_prefix: [:my_event], stats: true] ++ @config
 
     test "emits a telemetry event with custom telemetry_prefix when called" do
       with_telemetry_handler(__MODULE__, [[:my_event, :stats]], fn ->

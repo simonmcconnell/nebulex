@@ -10,7 +10,7 @@ defmodule Nebulex.Adapters.LocalEtsTest do
   alias Nebulex.Adapter
   alias Nebulex.TestCache.Cache
 
-  setup_with_dynamic_cache(Cache, :local_with_ets, purge_chunk_size: 10)
+  setup_with_dynamic_cache Cache, :local_with_ets, purge_chunk_size: 10
 
   describe "ets" do
     test "backend", %{name: name} do

@@ -418,25 +418,25 @@ defmodule Nebulex.Adapters.Replicated do
   end
 
   @impl true
-  defspan exists?(adapter_meta, key) do
-    with_dynamic_cache(adapter_meta, :exists?, [key])
+  defspan exists?(adapter_meta, key, opts) do
+    with_dynamic_cache(adapter_meta, :exists?, [key, opts])
   end
 
   @impl true
-  defspan ttl(adapter_meta, key) do
+  defspan ttl(adapter_meta, key, opts) do
     adapter_meta
-    |> with_dynamic_cache(:ttl, [key])
+    |> with_dynamic_cache(:ttl, [key, opts])
     |> handle_key_error(adapter_meta.name)
   end
 
   @impl true
-  defspan expire(adapter_meta, key, ttl) do
-    with_transaction(adapter_meta, :expire, [key], [key, ttl])
+  defspan expire(adapter_meta, key, ttl, opts) do
+    with_transaction(adapter_meta, :expire, [key], [key, ttl, opts])
   end
 
   @impl true
-  defspan touch(adapter_meta, key) do
-    with_transaction(adapter_meta, :touch, [key], [key])
+  defspan touch(adapter_meta, key, opts) do
+    with_transaction(adapter_meta, :touch, [key], [key, opts])
   end
 
   ## Nebulex.Adapter.Queryable

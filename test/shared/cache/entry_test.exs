@@ -25,6 +25,20 @@ defmodule Nebulex.Cache.EntryTest do
           cache.put("hello", "world", ttl: "1")
         end
       end
+
+      test "with :dynamic_cache option", %{cache: cache} = ctx do
+        if name = Map.get(ctx, :name) do
+          assert cache.put("foo", "bar", dynamic_cache: name) == :ok
+          assert cache.fetch!("foo", dynamic_cache: name) == "bar"
+          assert cache.delete("foo", dynamic_cache: name) == :ok
+        end
+      end
+
+      test "with :dynamic_cache option raise and exception", %{cache: cache} do
+        assert_raise Nebulex.Error, ~r"could not lookup", fn ->
+          cache.put!("foo", "bar", dynamic_cache: :invalid)
+        end
+      end
     end
 
     describe "put!/3" do

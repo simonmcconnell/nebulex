@@ -94,11 +94,11 @@ defmodule Nebulex.Adapters.Local.GenerationTest do
   end
 
   describe "gc" do
-    setup_with_dynamic_cache(Cache, :gc_test,
-      backend: :shards,
-      gc_interval: 1000,
-      compressed: true
-    )
+    setup_with_dynamic_cache Cache,
+                             :gc_test,
+                             backend: :shards,
+                             gc_interval: 1000,
+                             compressed: true
 
     test "create generations", %{cache: cache, name: name} do
       assert generations_len(name) == 1

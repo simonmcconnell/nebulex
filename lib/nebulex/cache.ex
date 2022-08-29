@@ -53,6 +53,17 @@ defmodule Nebulex.Cache do
       implementing `Nebulex.Adapter.Stats` behaviour. See the "Stats" section
       below.
 
+  ## Shared options
+
+  Almost all of the cache functions outlined in this module accept the following
+  options:
+
+    * `:dynamic_cache` - The name of the cache supervisor process. The name is
+      either an atom or a PID. There might be cases where we want to have
+      different cache instances but access them through the same cache module.
+      This option tells the executed cache command what cache instance to use
+      dynamically in runtime.
+
   ## Telemetry events
 
   Similar to Ecto or Phoenix, Nebulex also provides built-in Telemetry events
@@ -337,6 +348,34 @@ defmodule Nebulex.Cache do
 
   defp base_defs do
     quote do
+      ## Helpers
+
+      @doc """
+      Helper macro to resolve the dynamic cache.
+      """
+      defmacro dynamic_cache(opts, do: block) do
+        quote do
+          {dynamic_cache, opts} =
+            __MODULE__.pop_first_lazy(
+              unquote(opts),
+              :dynamic_cache,
+              fn -> get_dynamic_cache() end
+            )
+
+          unquote(block)
+        end
+      end
+
+      @doc """
+      Custom convenience `pop_first_lazy/3` function.
+      """
+      def pop_first_lazy(keyword, key, fun) do
+        case :lists.keytake(key, 1, keyword) do
+          {:value, {^key, value}, rest} -> {value, rest}
+          false -> {fun.(), keyword}
+        end
+      end
+
       ## Config and metadata
 
       @impl true
@@ -369,10 +408,13 @@ defmodule Nebulex.Cache do
       end
 
       @impl true
-      def stop(timeout \\ 5000) do
-        Supervisor.stop(get_dynamic_cache(), :normal, timeout)
+      def stop(opts \\ []) do
+        dynamic_cache opts do
+          Supervisor.stop(dynamic_cache, :normal, Keyword.get(opts, :timeout, 5000))
+        end
       end
 
+      # Iniline common instructions
       @compile {:inline, get_dynamic_cache: 0}
 
       @impl true
@@ -411,177 +453,177 @@ defmodule Nebulex.Cache do
 
       @impl true
       def fetch(key, opts \\ []) do
-        Entry.fetch(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.fetch(dynamic_cache, key, opts)
       end
 
       @impl true
       def fetch!(key, opts \\ []) do
-        Entry.fetch!(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.fetch!(dynamic_cache, key, opts)
       end
 
       @impl true
       def get(key, default \\ nil, opts \\ []) do
-        Entry.get(get_dynamic_cache(), key, default, opts)
+        dynamic_cache opts, do: Entry.get(dynamic_cache, key, default, opts)
       end
 
       @impl true
       def get!(key, default \\ nil, opts \\ []) do
-        Entry.get!(get_dynamic_cache(), key, default, opts)
+        dynamic_cache opts, do: Entry.get!(dynamic_cache, key, default, opts)
       end
 
       @impl true
       def get_all(keys, opts \\ []) do
-        Entry.get_all(get_dynamic_cache(), keys, opts)
+        dynamic_cache opts, do: Entry.get_all(dynamic_cache, keys, opts)
       end
 
       @impl true
       def get_all!(keys, opts \\ []) do
-        Entry.get_all!(get_dynamic_cache(), keys, opts)
+        dynamic_cache opts, do: Entry.get_all!(dynamic_cache, keys, opts)
       end
 
       @impl true
       def put(key, value, opts \\ []) do
-        Entry.put(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.put(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def put!(key, value, opts \\ []) do
-        Entry.put!(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.put!(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def put_new(key, value, opts \\ []) do
-        Entry.put_new(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.put_new(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def put_new!(key, value, opts \\ []) do
-        Entry.put_new!(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.put_new!(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def replace(key, value, opts \\ []) do
-        Entry.replace(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.replace(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def replace!(key, value, opts \\ []) do
-        Entry.replace!(get_dynamic_cache(), key, value, opts)
+        dynamic_cache opts, do: Entry.replace!(dynamic_cache, key, value, opts)
       end
 
       @impl true
       def put_all(entries, opts \\ []) do
-        Entry.put_all(get_dynamic_cache(), entries, opts)
+        dynamic_cache opts, do: Entry.put_all(dynamic_cache, entries, opts)
       end
 
       @impl true
       def put_all!(entries, opts \\ []) do
-        Entry.put_all!(get_dynamic_cache(), entries, opts)
+        dynamic_cache opts, do: Entry.put_all!(dynamic_cache, entries, opts)
       end
 
       @impl true
       def put_new_all(entries, opts \\ []) do
-        Entry.put_new_all(get_dynamic_cache(), entries, opts)
+        dynamic_cache opts, do: Entry.put_new_all(dynamic_cache, entries, opts)
       end
 
       @impl true
       def put_new_all!(entries, opts \\ []) do
-        Entry.put_new_all!(get_dynamic_cache(), entries, opts)
+        dynamic_cache opts, do: Entry.put_new_all!(dynamic_cache, entries, opts)
       end
 
       @impl true
       def delete(key, opts \\ []) do
-        Entry.delete(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.delete(dynamic_cache, key, opts)
       end
 
       @impl true
       def delete!(key, opts \\ []) do
-        Entry.delete!(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.delete!(dynamic_cache, key, opts)
       end
 
       @impl true
       def take(key, opts \\ []) do
-        Entry.take(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.take(dynamic_cache, key, opts)
       end
 
       @impl true
       def take!(key, opts \\ []) do
-        Entry.take!(get_dynamic_cache(), key, opts)
+        dynamic_cache opts, do: Entry.take!(dynamic_cache, key, opts)
       end
 
       @impl true
-      def exists?(key) do
-        Entry.exists?(get_dynamic_cache(), key)
+      def exists?(key, opts \\ []) do
+        dynamic_cache opts, do: Entry.exists?(dynamic_cache, key, opts)
       end
 
       @impl true
       def get_and_update(key, fun, opts \\ []) do
-        Entry.get_and_update(get_dynamic_cache(), key, fun, opts)
+        dynamic_cache opts, do: Entry.get_and_update(dynamic_cache, key, fun, opts)
       end
 
       @impl true
       def get_and_update!(key, fun, opts \\ []) do
-        Entry.get_and_update!(get_dynamic_cache(), key, fun, opts)
+        dynamic_cache opts, do: Entry.get_and_update!(dynamic_cache, key, fun, opts)
       end
 
       @impl true
       def update(key, initial, fun, opts \\ []) do
-        Entry.update(get_dynamic_cache(), key, initial, fun, opts)
+        dynamic_cache opts, do: Entry.update(dynamic_cache, key, initial, fun, opts)
       end
 
       @impl true
       def update!(key, initial, fun, opts \\ []) do
-        Entry.update!(get_dynamic_cache(), key, initial, fun, opts)
+        dynamic_cache opts, do: Entry.update!(get_dynamic_cache(), key, initial, fun, opts)
       end
 
       @impl true
       def incr(key, amount \\ 1, opts \\ []) do
-        Entry.incr(get_dynamic_cache(), key, amount, opts)
+        dynamic_cache opts, do: Entry.incr(dynamic_cache, key, amount, opts)
       end
 
       @impl true
       def incr!(key, amount \\ 1, opts \\ []) do
-        Entry.incr!(get_dynamic_cache(), key, amount, opts)
+        dynamic_cache opts, do: Entry.incr!(dynamic_cache, key, amount, opts)
       end
 
       @impl true
       def decr(key, amount \\ 1, opts \\ []) do
-        Entry.decr(get_dynamic_cache(), key, amount, opts)
+        dynamic_cache opts, do: Entry.decr(dynamic_cache, key, amount, opts)
       end
 
       @impl true
       def decr!(key, amount \\ 1, opts \\ []) do
-        Entry.decr!(get_dynamic_cache(), key, amount, opts)
+        dynamic_cache opts, do: Entry.decr!(dynamic_cache, key, amount, opts)
       end
 
       @impl true
-      def ttl(key) do
-        Entry.ttl(get_dynamic_cache(), key)
+      def ttl(key, opts \\ []) do
+        dynamic_cache opts, do: Entry.ttl(dynamic_cache, key, opts)
       end
 
       @impl true
-      def ttl!(key) do
-        Entry.ttl!(get_dynamic_cache(), key)
+      def ttl!(key, opts \\ []) do
+        dynamic_cache opts, do: Entry.ttl!(dynamic_cache, key, opts)
       end
 
       @impl true
-      def expire(key, ttl) do
-        Entry.expire(get_dynamic_cache(), key, ttl)
+      def expire(key, ttl, opts \\ []) do
+        dynamic_cache opts, do: Entry.expire(dynamic_cache, key, ttl, opts)
       end
 
       @impl true
-      def expire!(key, ttl) do
-        Entry.expire!(get_dynamic_cache(), key, ttl)
+      def expire!(key, ttl, opts \\ []) do
+        dynamic_cache opts, do: Entry.expire!(dynamic_cache, key, ttl, opts)
       end
 
       @impl true
-      def touch(key) do
-        Entry.touch(get_dynamic_cache(), key)
+      def touch(key, opts \\ []) do
+        dynamic_cache opts, do: Entry.touch(dynamic_cache, key, opts)
       end
 
       @impl true
-      def touch!(key) do
-        Entry.touch!(get_dynamic_cache(), key)
+      def touch!(key, opts \\ []) do
+        dynamic_cache opts, do: Entry.touch!(dynamic_cache, key, opts)
       end
     end
   end
@@ -592,42 +634,42 @@ defmodule Nebulex.Cache do
 
       @impl true
       def all(query \\ nil, opts \\ []) do
-        Queryable.all(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.all(dynamic_cache, query, opts)
       end
 
       @impl true
       def all!(query \\ nil, opts \\ []) do
-        Queryable.all!(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.all!(dynamic_cache, query, opts)
       end
 
       @impl true
       def count_all(query \\ nil, opts \\ []) do
-        Queryable.count_all(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.count_all(dynamic_cache, query, opts)
       end
 
       @impl true
       def count_all!(query \\ nil, opts \\ []) do
-        Queryable.count_all!(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.count_all!(dynamic_cache, query, opts)
       end
 
       @impl true
       def delete_all(query \\ nil, opts \\ []) do
-        Queryable.delete_all(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.delete_all(dynamic_cache, query, opts)
       end
 
       @impl true
       def delete_all!(query \\ nil, opts \\ []) do
-        Queryable.delete_all!(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.delete_all!(dynamic_cache, query, opts)
       end
 
       @impl true
       def stream(query \\ nil, opts \\ []) do
-        Queryable.stream(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.stream(dynamic_cache, query, opts)
       end
 
       @impl true
       def stream!(query \\ nil, opts \\ []) do
-        Queryable.stream!(get_dynamic_cache(), query, opts)
+        dynamic_cache opts, do: Queryable.stream!(dynamic_cache, query, opts)
       end
     end
   end
@@ -638,22 +680,22 @@ defmodule Nebulex.Cache do
 
       @impl true
       def dump(path, opts \\ []) do
-        Persistence.dump(get_dynamic_cache(), path, opts)
+        dynamic_cache opts, do: Persistence.dump(dynamic_cache, path, opts)
       end
 
       @impl true
       def dump!(path, opts \\ []) do
-        Persistence.dump!(get_dynamic_cache(), path, opts)
+        dynamic_cache opts, do: Persistence.dump!(dynamic_cache, path, opts)
       end
 
       @impl true
       def load(path, opts \\ []) do
-        Persistence.load(get_dynamic_cache(), path, opts)
+        dynamic_cache opts, do: Persistence.load(dynamic_cache, path, opts)
       end
 
       @impl true
       def load!(path, opts \\ []) do
-        Persistence.load!(get_dynamic_cache(), path, opts)
+        dynamic_cache opts, do: Persistence.load!(dynamic_cache, path, opts)
       end
     end
   end
@@ -664,12 +706,12 @@ defmodule Nebulex.Cache do
 
       @impl true
       def transaction(opts \\ [], fun) do
-        Transaction.transaction(get_dynamic_cache(), opts, fun)
+        dynamic_cache opts, do: Transaction.transaction(dynamic_cache, opts, fun)
       end
 
       @impl true
-      def in_transaction? do
-        Transaction.in_transaction?(get_dynamic_cache())
+      def in_transaction?(opts \\ []) do
+        dynamic_cache opts, do: Transaction.in_transaction?(dynamic_cache)
       end
     end
   end
@@ -679,18 +721,18 @@ defmodule Nebulex.Cache do
       alias Nebulex.Cache.Stats
 
       @impl true
-      def stats do
-        Stats.stats(get_dynamic_cache())
+      def stats(opts \\ []) do
+        dynamic_cache opts, do: Stats.stats(dynamic_cache)
       end
 
       @impl true
-      def stats! do
-        Stats.stats!(get_dynamic_cache())
+      def stats!(opts \\ []) do
+        dynamic_cache opts, do: Stats.stats!(dynamic_cache)
       end
 
       @impl true
       def dispatch_stats(opts \\ []) do
-        Stats.dispatch_stats(get_dynamic_cache(), opts)
+        dynamic_cache opts, do: Stats.dispatch_stats(dynamic_cache, opts)
       end
     end
   end
@@ -752,8 +794,16 @@ defmodule Nebulex.Cache do
 
   @doc """
   Shuts down the cache.
+
+  ## Options
+
+    `:timeout` - It is an integer that specifies how many milliseconds to wait
+    for the cache supervisor process to terminate, or the atom `:infinity` to
+    wait indefinitely. Defaults to `5000`. See `Supervisor.stop/3`.
+
+  See the "Shared options" section at the module documentation for more options.
   """
-  @callback stop(timeout) :: :ok
+  @callback stop(opts) :: :ok
 
   @doc """
   Returns the atom name or pid of the current cache
@@ -761,14 +811,14 @@ defmodule Nebulex.Cache do
 
   See also `c:put_dynamic_cache/1`.
   """
-  @callback get_dynamic_cache() :: atom() | pid()
+  @callback get_dynamic_cache() :: atom | pid
 
   @doc """
   Sets the dynamic cache to be used in further commands
   (based on Ecto dynamic repo).
 
   There might be cases where we want to have different cache instances but
-  accessing them through the same cache module. By default, when you call
+  access them through the same cache module. By default, when you call
   `MyApp.Cache.start_link/1`, it will start a cache with the name
   `MyApp.Cache`. But it is also possible to start multiple caches by using
   a different name for each of them:
@@ -799,7 +849,7 @@ defmodule Nebulex.Cache do
   From this moment on, all future commands performed by the current process
   will run on `:another_cache_name`.
   """
-  @callback put_dynamic_cache(atom() | pid()) :: atom() | pid()
+  @callback put_dynamic_cache(atom | pid) :: atom | pid
 
   @doc """
   Invokes the given function `fun` for the dynamic cache `name_or_pid`.
@@ -812,7 +862,7 @@ defmodule Nebulex.Cache do
 
   See `c:get_dynamic_cache/0` and `c:put_dynamic_cache/1`.
   """
-  @callback with_dynamic_cache(name_or_pid :: atom() | pid(), fun) :: term
+  @callback with_dynamic_cache(name_or_pid :: atom | pid, fun) :: term
 
   @doc """
   For the dynamic cache `name_or_pid`, invokes the given function name `fun`
@@ -825,7 +875,7 @@ defmodule Nebulex.Cache do
   See `c:get_dynamic_cache/0` and `c:put_dynamic_cache/1`.
   """
   @callback with_dynamic_cache(
-              name_or_pid :: atom() | pid(),
+              name_or_pid :: atom | pid,
               module,
               fun :: atom,
               args :: [term]
@@ -1197,6 +1247,10 @@ defmodule Nebulex.Cache do
 
   Returns `{:error, reason}` if an error occurs.
 
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
+
   ## Examples
 
       iex> MyCache.put(:a, 1)
@@ -1209,7 +1263,7 @@ defmodule Nebulex.Cache do
       {:ok, false}
 
   """
-  @callback exists?(key) :: ok_error_tuple(boolean)
+  @callback exists?(key, opts) :: ok_error_tuple(boolean)
 
   @doc """
   Increments the counter stored at `key` by the given `amount`, and returns
@@ -1309,6 +1363,10 @@ defmodule Nebulex.Cache do
   Returns `{:error, Nebulex.Error.t()}` if any other error occurs while
   executing the command.
 
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
+
   ## Examples
 
       iex> MyCache.put(:a, 1, ttl: 5000)
@@ -1327,18 +1385,22 @@ defmodule Nebulex.Cache do
       _error
 
   """
-  @callback ttl(key) :: ok_error_tuple(timeout, fetch_error_reason)
+  @callback ttl(key, opts) :: ok_error_tuple(timeout, fetch_error_reason)
 
   @doc """
-  Same as `c:ttl/1` but raises an exception if an error occurs.
+  Same as `c:ttl/2` but raises an exception if an error occurs.
   """
-  @callback ttl!(key) :: timeout
+  @callback ttl!(key, opts) :: timeout
 
   @doc """
   Returns `{:ok, true}` if the given `key` exists and the new `ttl` was
   successfully updated, otherwise, `{:ok, false}` is returned.
 
   Returns `{:error, reason}` if an error occurs.
+
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
 
   ## Examples
 
@@ -1355,18 +1417,22 @@ defmodule Nebulex.Cache do
       {:ok, false}
 
   """
-  @callback expire(key, ttl :: timeout) :: ok_error_tuple(boolean)
+  @callback expire(key, ttl :: timeout, opts) :: ok_error_tuple(boolean)
 
   @doc """
-  Same as `c:expire/2` but raises an exception if an error occurs.
+  Same as `c:expire/3` but raises an exception if an error occurs.
   """
-  @callback expire!(key, ttl :: timeout) :: boolean
+  @callback expire!(key, ttl :: timeout, opts) :: boolean
 
   @doc """
   Returns `{:ok, true}` if the given `key` exists and the last access time was
   successfully updated, otherwise, `{:ok, false}` is returned.
 
   Returns `{:error, reason}` if an error occurs.
+
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
 
   ## Examples
 
@@ -1380,12 +1446,12 @@ defmodule Nebulex.Cache do
       {:ok, false}
 
   """
-  @callback touch(key) :: ok_error_tuple(boolean)
+  @callback touch(key, opts) :: ok_error_tuple(boolean)
 
   @doc """
-  Same as `c:touch/1` but raises an exception if an error occurs.
+  Same as `c:touch/2` but raises an exception if an error occurs.
   """
-  @callback touch!(key) :: boolean
+  @callback touch!(key, opts) :: boolean
 
   @doc """
   Gets the value from `key` and updates it, all in one pass.
@@ -1801,6 +1867,10 @@ defmodule Nebulex.Cache do
 
   See `c:all/2` callback for more information about the query values.
 
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
+
   ## Example
 
   Populate the cache with some entries:
@@ -1844,6 +1914,8 @@ defmodule Nebulex.Cache do
   the default implementation from `Nebulex.Adapter.Persistence`, hence, review
   the available options there.
 
+  See the "Shared options" section at the module documentation for more options.
+
   ## Examples
 
   Populate the cache with some entries:
@@ -1878,6 +1950,8 @@ defmodule Nebulex.Cache do
   default implementation from `Nebulex.Adapter.Persistence`, hence, review
   the available options there.
 
+  See the "Shared options" section at the module documentation for more options.
+
   ## Examples
 
   Populate the cache with some entries:
@@ -1906,7 +1980,7 @@ defmodule Nebulex.Cache do
 
   ## Nebulex.Adapter.Transaction
 
-  @optional_callbacks transaction: 2, in_transaction?: 0
+  @optional_callbacks transaction: 2, in_transaction?: 1
 
   @doc """
   Runs the given function inside a transaction.
@@ -1954,6 +2028,10 @@ defmodule Nebulex.Cache do
 
   Returns `{:error, reason}` if an error occurs.
 
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
+
   ## Examples
 
       MyCache.in_transaction?
@@ -1964,11 +2042,11 @@ defmodule Nebulex.Cache do
       end)
 
   """
-  @callback in_transaction?() :: ok_error_tuple(boolean)
+  @callback in_transaction?(opts) :: ok_error_tuple(boolean)
 
   ## Nebulex.Adapter.Stats
 
-  @optional_callbacks stats: 0, stats!: 0, dispatch_stats: 1
+  @optional_callbacks stats: 1, stats!: 1, dispatch_stats: 1
 
   @doc """
   Returns current stats values.
@@ -1979,6 +2057,10 @@ defmodule Nebulex.Cache do
       for the cache.
 
     * `{:error, reason}` - an error occurred while executing the command.
+
+  ## Options
+
+  See the "Shared options" section at the module documentation for more options.
 
   ## Example
 
@@ -1997,12 +2079,12 @@ defmodule Nebulex.Cache do
        }}
 
   """
-  @callback stats() :: ok_error_tuple(Nebulex.Stats.t())
+  @callback stats(opts) :: ok_error_tuple(Nebulex.Stats.t())
 
   @doc """
-  Same as `c:stats/0` but raises an exception if an error occurs.
+  Same as `c:stats/1` but raises an exception if an error occurs.
   """
-  @callback stats!() :: Nebulex.Stats.t()
+  @callback stats!(opts) :: Nebulex.Stats.t()
 
   @doc """
   Emits a telemetry event when called with the current stats count.
@@ -2034,6 +2116,8 @@ defmodule Nebulex.Cache do
       Defaults to `[:nebulex, :cache]`.
 
     * `:metadata` – A map with additional metadata fields. Defaults to `%{}`.
+
+  See the "Shared options" section at the module documentation for more options.
 
   ## Examples
 

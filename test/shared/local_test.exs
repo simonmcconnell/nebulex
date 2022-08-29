@@ -3,19 +3,9 @@ defmodule Nebulex.LocalTest do
 
   deftests do
     import Ex2ms
-    import Nebulex.CacheCase
+    import Nebulex.CacheCase, only: [cache_put: 2, cache_put: 3, cache_put: 4]
 
     alias Nebulex.{Adapter, Entry}
-
-    describe "with_dynamic_cache/3" do
-      test "ok", %{cache: cache} do
-        test_with_dynamic_cache(cache, fn ->
-          :ok = cache.put("foo", "bar")
-
-          assert cache.get!("foo") == "bar"
-        end)
-      end
-    end
 
     describe "error" do
       test "on init because invalid backend", %{cache: cache} do

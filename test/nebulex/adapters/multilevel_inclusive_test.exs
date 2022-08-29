@@ -31,10 +31,10 @@ defmodule Nebulex.Adapters.MultilevelInclusiveTest do
     }
   ]
 
-  setup_with_dynamic_cache(Multilevel, :multilevel_inclusive,
-    model: :inclusive,
-    levels: @levels
-  )
+  setup_with_dynamic_cache Multilevel,
+                           :multilevel_inclusive,
+                           model: :inclusive,
+                           levels: @levels
 
   describe "multilevel inclusive" do
     test "returns partitions for L1 with shards backend", %{name: name} do

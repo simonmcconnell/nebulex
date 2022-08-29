@@ -81,7 +81,7 @@ defmodule Nebulex.TelemetryTest do
   ## Tests
 
   describe "span/3" do
-    setup_with_cache(Cache, @config)
+    setup_with_cache Cache, @config
 
     test "ok: emits start and stop events" do
       with_telemetry_handler(__MODULE__, @start_events ++ @stop_events, fn ->
@@ -153,7 +153,7 @@ defmodule Nebulex.TelemetryTest do
   end
 
   describe "span/3 bypassed" do
-    setup_with_cache(Cache, Keyword.put(@config, :telemetry, false))
+    setup_with_cache Cache, Keyword.put(@config, :telemetry, false)
 
     test "telemetry set to false" do
       for cache <- @caches do

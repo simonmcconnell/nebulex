@@ -31,10 +31,10 @@ defmodule Nebulex.Adapters.MultilevelExclusiveTest do
     }
   ]
 
-  setup_with_dynamic_cache(Multilevel, :multilevel_exclusive,
-    model: :exclusive,
-    levels: @levels
-  )
+  setup_with_dynamic_cache Multilevel,
+                           :multilevel_exclusive,
+                           model: :exclusive,
+                           levels: @levels
 
   describe "multilevel exclusive" do
     test "returns partitions for L1 with shards backend", %{name: name} do

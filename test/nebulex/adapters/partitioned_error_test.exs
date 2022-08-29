@@ -8,7 +8,7 @@ defmodule Nebulex.Adapters.PartitionedErrorTest do
 
   import Nebulex.CacheCase, only: [setup_with_dynamic_cache: 2]
 
-  setup_with_dynamic_cache(Nebulex.TestCache.Partitioned, :partitioned_error_cache)
+  setup_with_dynamic_cache Nebulex.TestCache.Partitioned, :partitioned_error_cache
 
   setup do
     Nebulex.RPC

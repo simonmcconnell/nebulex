@@ -3,7 +3,18 @@ locals_without_parens = [
   unwrap_or_raise: 1,
   wrap_ok: 1,
   wrap_error: 1,
-  wrap_error: 2
+  wrap_error: 2,
+
+  # Nebulex.Cache
+  dynamic_cache: 2,
+
+  # Tests
+  deftests: 1,
+  deftests: 2,
+  setup_with_cache: 1,
+  setup_with_cache: 2,
+  setup_with_dynamic_cache: 2,
+  setup_with_dynamic_cache: 3
 ]
 
 [

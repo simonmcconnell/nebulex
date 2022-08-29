@@ -10,7 +10,7 @@ defmodule Nebulex.Adapters.LocalWithShardsTest do
   alias Nebulex.Adapter
   alias Nebulex.TestCache.Cache
 
-  setup_with_dynamic_cache(Cache, :local_with_shards, backend: :shards)
+  setup_with_dynamic_cache Cache, :local_with_shards, backend: :shards
 
   describe "shards" do
     test "backend", %{name: name} do

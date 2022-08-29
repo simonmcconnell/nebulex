@@ -19,14 +19,13 @@ defmodule Nebulex.Cache.RegistryTest do
   describe "all_running/0" do
     test "ok: returns all running cache names" do
       test_with_dynamic_cache(Cache, [name: :registry_test_cache], fn ->
-        assert Nebulex.Cache.Registry.all_running() == [:registry_test_cache]
+        assert :registry_test_cache in Nebulex.Cache.Registry.all_running()
       end)
     end
 
     test "ok: returns all running cache pids" do
       test_with_dynamic_cache(Cache, [name: nil], fn ->
-        assert [pid] = Nebulex.Cache.Registry.all_running()
-        assert is_pid(pid) == true
+        assert Nebulex.Cache.Registry.all_running() |> Enum.any?(&is_pid/1)
       end)
     end
   end

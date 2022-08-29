@@ -500,8 +500,8 @@ defmodule Nebulex.Adapters.Partitioned do
   end
 
   @impl true
-  defspan exists?(adapter_meta, key) do
-    call(adapter_meta, key, :exists?, [key])
+  defspan exists?(adapter_meta, key, opts) do
+    call(adapter_meta, key, :exists?, [key, opts])
   end
 
   @impl true
@@ -510,20 +510,20 @@ defmodule Nebulex.Adapters.Partitioned do
   end
 
   @impl true
-  defspan ttl(adapter_meta, key) do
+  defspan ttl(adapter_meta, key, opts) do
     adapter_meta
-    |> call(key, :ttl, [key])
+    |> call(key, :ttl, [key, opts])
     |> handle_key_error(adapter_meta.name)
   end
 
   @impl true
-  defspan expire(adapter_meta, key, ttl) do
-    call(adapter_meta, key, :expire, [key, ttl])
+  defspan expire(adapter_meta, key, ttl, opts) do
+    call(adapter_meta, key, :expire, [key, ttl, opts])
   end
 
   @impl true
-  defspan touch(adapter_meta, key) do
-    call(adapter_meta, key, :touch, [key])
+  defspan touch(adapter_meta, key, opts) do
+    call(adapter_meta, key, :touch, [key, opts])
   end
 
   ## Nebulex.Adapter.Queryable

@@ -15,7 +15,7 @@ defmodule Nebulex.Adapters.MultilevelErrorTest do
     {L3, name: :multilevel_error_cache_l3, primary: [gc_interval: @gc_interval]}
   ]
 
-  setup_with_dynamic_cache(Multilevel, :multilevel_error_cache, levels: @levels)
+  setup_with_dynamic_cache Multilevel, :multilevel_error_cache, levels: @levels
 
   describe "cache level error" do
     test "fetch/2", %{cache: cache} do
@@ -50,7 +50,7 @@ defmodule Nebulex.Adapters.MultilevelErrorTest do
 
     test "exists?/1", %{cache: cache} do
       L1
-      |> expect(:exists?, fn _ -> {:error, %Nebulex.Error{reason: :error}} end)
+      |> expect(:exists?, fn _, _ -> {:error, %Nebulex.Error{reason: :error}} end)
 
       assert cache.exists?("error") ==
                {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
@@ -58,7 +58,7 @@ defmodule Nebulex.Adapters.MultilevelErrorTest do
 
     test "expire!/2", %{cache: cache} do
       L1
-      |> expect(:expire, fn _, _ -> {:error, %Nebulex.Error{reason: :error}} end)
+      |> expect(:expire, fn _, _, _ -> {:error, %Nebulex.Error{reason: :error}} end)
 
       assert_raise Nebulex.Error, ~r"Nebulex error:\n\n:error", fn ->
         cache.expire!(:raise, 100)
@@ -67,7 +67,7 @@ defmodule Nebulex.Adapters.MultilevelErrorTest do
 
     test "touch!/1", %{cache: cache} do
       L1
-      |> expect(:touch, fn _ -> {:error, %Nebulex.Error{reason: :error}} end)
+      |> expect(:touch, fn _, _ -> {:error, %Nebulex.Error{reason: :error}} end)
 
       assert_raise Nebulex.Error, ~r"Nebulex error:\n\n:error", fn ->
         cache.touch!(:raise)
@@ -76,7 +76,7 @@ defmodule Nebulex.Adapters.MultilevelErrorTest do
 
     test "ttl/1", %{cache: cache} do
       L1
-      |> expect(:ttl, fn _ -> {:error, %Nebulex.Error{reason: :error}} end)
+      |> expect(:ttl, fn _, _ -> {:error, %Nebulex.Error{reason: :error}} end)
 
       assert cache.ttl(1) == {:error, %Nebulex.Error{module: Nebulex.Error, reason: :error}}
     end

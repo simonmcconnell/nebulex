@@ -29,16 +29,16 @@ defmodule Nebulex.FakeAdapter do
   def take(_, _, _), do: {:error, %Nebulex.Error{reason: :error}}
 
   @doc false
-  def exists?(_, _), do: {:error, %Nebulex.Error{reason: :error}}
+  def exists?(_, _, _), do: {:error, %Nebulex.Error{reason: :error}}
 
   @doc false
-  def ttl(_, _), do: {:error, %Nebulex.Error{reason: :error}}
+  def ttl(_, _, _), do: {:error, %Nebulex.Error{reason: :error}}
 
   @doc false
-  def expire(_, _, _), do: {:error, %Nebulex.Error{reason: :error}}
+  def expire(_, _, _, _), do: {:error, %Nebulex.Error{reason: :error}}
 
   @doc false
-  def touch(_, _), do: {:error, %Nebulex.Error{reason: :error}}
+  def touch(_, _, _), do: {:error, %Nebulex.Error{reason: :error}}
 
   @doc false
   def update_counter(_, _, _, _, _, _), do: {:error, %Nebulex.Error{reason: :error}}

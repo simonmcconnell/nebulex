@@ -191,8 +191,8 @@ defmodule Nebulex.Cache.Entry do
   @doc """
   Implementation for `c:Nebulex.Cache.exists?/1`.
   """
-  def exists?(name, key) do
-    Adapter.with_meta(name, & &1.adapter.exists?(&1, key))
+  def exists?(name, key, opts) do
+    Adapter.with_meta(name, & &1.adapter.exists?(&1, key, opts))
   end
 
   @doc """
@@ -321,15 +321,15 @@ defmodule Nebulex.Cache.Entry do
   @doc """
   Implementation for `c:Nebulex.Cache.ttl/1`.
   """
-  def ttl(name, key) do
-    Adapter.with_meta(name, & &1.adapter.ttl(&1, key))
+  def ttl(name, key, opts) do
+    Adapter.with_meta(name, & &1.adapter.ttl(&1, key, opts))
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.ttl!/1`.
   """
-  def ttl!(name, key) do
-    case ttl(name, key) do
+  def ttl!(name, key, opts) do
+    case ttl(name, key, opts) do
       {:ok, ttl} -> ttl
       {:error, reason} -> raise reason
     end
@@ -338,33 +338,33 @@ defmodule Nebulex.Cache.Entry do
   @doc """
   Implementation for `c:Nebulex.Cache.expire/2`.
   """
-  def expire(name, key, ttl) do
+  def expire(name, key, ttl, opts) do
     ttl =
       (Time.timeout?(ttl) && ttl) ||
         raise ArgumentError, "expected ttl to be a valid timeout, got: #{inspect(ttl)}"
 
-    Adapter.with_meta(name, & &1.adapter.expire(&1, key, ttl))
+    Adapter.with_meta(name, & &1.adapter.expire(&1, key, ttl, opts))
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.expire!/2`.
   """
-  def expire!(name, key, ttl) do
-    unwrap_or_raise expire(name, key, ttl)
+  def expire!(name, key, ttl, opts) do
+    unwrap_or_raise expire(name, key, ttl, opts)
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.touch/1`.
   """
-  def touch(name, key) do
-    Adapter.with_meta(name, & &1.adapter.touch(&1, key))
+  def touch(name, key, opts) do
+    Adapter.with_meta(name, & &1.adapter.touch(&1, key, opts))
   end
 
   @doc """
   Implementation for `c:Nebulex.Cache.touch!/1`.
   """
-  def touch!(name, key) do
-    unwrap_or_raise touch(name, key)
+  def touch!(name, key, opts) do
+    unwrap_or_raise touch(name, key, opts)
   end
 
   ## Helpers

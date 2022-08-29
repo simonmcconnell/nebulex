@@ -152,16 +152,16 @@ defmodule Nebulex.TestCache do
     def take(_, _, _), do: {:ok, nil}
 
     @impl true
-    def exists?(_, _), do: {:ok, true}
+    def exists?(_, _, _), do: {:ok, true}
 
     @impl true
-    def ttl(_, _), do: {:ok, nil}
+    def ttl(_, _, _), do: {:ok, nil}
 
     @impl true
-    def expire(_, _, _), do: {:ok, true}
+    def expire(_, _, _, _), do: {:ok, true}
 
     @impl true
-    def touch(_, _), do: {:ok, true}
+    def touch(_, _, _), do: {:ok, true}
 
     @impl true
     def update_counter(_, _, _, _, _, _), do: {:ok, 1}

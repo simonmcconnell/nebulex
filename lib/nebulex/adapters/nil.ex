@@ -109,18 +109,18 @@ defmodule Nebulex.Adapters.Nil do
   end
 
   @impl true
-  def exists?(_, _), do: {:ok, false}
+  def exists?(_, _, _), do: {:ok, false}
 
   @impl true
-  def ttl(adapter_meta, key) do
+  def ttl(adapter_meta, key, _opts) do
     wrap_error Nebulex.KeyError, key: key, cache: adapter_meta.cache
   end
 
   @impl true
-  def expire(_, _, _), do: {:ok, false}
+  def expire(_, _, _, _), do: {:ok, false}
 
   @impl true
-  def touch(_, _), do: {:ok, false}
+  def touch(_, _, _), do: {:ok, false}
 
   @impl true
   def update_counter(_, _, amount, _, default, _) do

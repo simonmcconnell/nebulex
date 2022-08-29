@@ -421,9 +421,9 @@ defmodule Nebulex.Adapters.Multilevel do
   end
 
   @impl true
-  defspan exists?(adapter_meta, key) do
+  defspan exists?(adapter_meta, key, opts) do
     Enum.reduce_while(adapter_meta.levels, {:ok, false}, fn l_meta, acc ->
-      case with_dynamic_cache(l_meta, :exists?, [key]) do
+      case with_dynamic_cache(l_meta, :exists?, [key, opts]) do
         {:ok, true} -> {:halt, {:ok, true}}
         {:ok, false} -> {:cont, acc}
         {:error, _} = error -> {:halt, error}
@@ -437,11 +437,11 @@ defmodule Nebulex.Adapters.Multilevel do
   end
 
   @impl true
-  defspan ttl(adapter_meta, key) do
+  defspan ttl(adapter_meta, key, opts) do
     default = wrap_error Nebulex.KeyError, key: key, cache: adapter_meta.name
 
     Enum.reduce_while(adapter_meta.levels, default, fn l_meta, acc ->
-      case with_dynamic_cache(l_meta, :ttl, [key]) do
+      case with_dynamic_cache(l_meta, :ttl, [key, opts]) do
         {:ok, _} = ok -> {:halt, ok}
         {:error, %Nebulex.KeyError{}} -> {:cont, acc}
         {:error, _} = error -> {:halt, error}
@@ -450,13 +450,13 @@ defmodule Nebulex.Adapters.Multilevel do
   end
 
   @impl true
-  defspan expire(adapter_meta, key, ttl) do
-    eval_while(adapter_meta, :expire, [key, ttl], {:ok, false}, &(&1 or &2))
+  defspan expire(adapter_meta, key, ttl, opts) do
+    eval_while(adapter_meta, :expire, [key, ttl, opts], {:ok, false}, &(&1 or &2))
   end
 
   @impl true
-  defspan touch(adapter_meta, key) do
-    eval_while(adapter_meta, :touch, [key], {:ok, false}, &(&1 or &2))
+  defspan touch(adapter_meta, key, opts) do
+    eval_while(adapter_meta, :touch, [key, opts], {:ok, false}, &(&1 or &2))
   end
 
   ## Nebulex.Adapter.Queryable

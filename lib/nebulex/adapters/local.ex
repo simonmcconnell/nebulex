@@ -546,7 +546,7 @@ defmodule Nebulex.Adapters.Local do
   end
 
   @impl true
-  def exists?(adapter_meta, key) do
+  def exists?(adapter_meta, key, _opts) do
     case fetch(adapter_meta, key, []) do
       {:ok, _} -> {:ok, true}
       {:error, _} -> {:ok, false}
@@ -554,7 +554,7 @@ defmodule Nebulex.Adapters.Local do
   end
 
   @impl true
-  defspan ttl(adapter_meta, key) do
+  defspan ttl(adapter_meta, key, _opts) do
     with {:ok, res} <- adapter_meta.meta_tab |> list_gen() |> do_fetch(key, adapter_meta) do
       {:ok, entry_ttl(res)}
     end
@@ -571,7 +571,7 @@ defmodule Nebulex.Adapters.Local do
   end
 
   @impl true
-  defspan expire(adapter_meta, key, ttl) do
+  defspan expire(adapter_meta, key, ttl, _opts) do
     now = Time.now()
 
     adapter_meta.meta_tab
@@ -580,7 +580,7 @@ defmodule Nebulex.Adapters.Local do
   end
 
   @impl true
-  defspan touch(adapter_meta, key) do
+  defspan touch(adapter_meta, key, _opts) do
     adapter_meta.meta_tab
     |> update_entry(adapter_meta.backend, key, [{4, Time.now()}])
     |> wrap_ok()

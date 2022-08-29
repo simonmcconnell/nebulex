@@ -50,7 +50,7 @@ defmodule Nebulex.CachingTest do
 
   alias Nebulex.CachingTest.{Cache, Meta}
 
-  setup_with_cache(Cache)
+  setup_with_cache Cache
 
   describe "decorator" do
     test "cacheable fails because missing cache" do
@@ -339,7 +339,7 @@ defmodule Nebulex.CachingTest do
   end
 
   describe "default key generator on" do
-    setup_with_cache(CacheWithDefaultKeyGenerator)
+    setup_with_cache CacheWithDefaultKeyGenerator
 
     test "cacheable annotation" do
       key = CacheWithDefaultKeyGenerator.generate(__MODULE__, :get_with_default_key_generator, [1])

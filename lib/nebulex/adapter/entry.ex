@@ -172,7 +172,7 @@ defmodule Nebulex.Adapter.Entry do
 
   See `c:Nebulex.Cache.exists?/1`.
   """
-  @callback exists?(adapter_meta, key) :: Nebulex.Cache.ok_error_tuple(boolean)
+  @callback exists?(adapter_meta, key, opts) :: Nebulex.Cache.ok_error_tuple(boolean)
 
   @doc """
   Returns the remaining time-to-live for the given `key`.
@@ -188,7 +188,7 @@ defmodule Nebulex.Adapter.Entry do
 
   See `c:Nebulex.Cache.ttl/1`.
   """
-  @callback ttl(adapter_meta, key) ::
+  @callback ttl(adapter_meta, key, opts) ::
               Nebulex.Cache.ok_error_tuple(value, Nebulex.Cache.fetch_error_reason())
 
   @doc """
@@ -199,7 +199,7 @@ defmodule Nebulex.Adapter.Entry do
 
   See `c:Nebulex.Cache.expire/2`.
   """
-  @callback expire(adapter_meta, key, ttl) :: Nebulex.Cache.ok_error_tuple(boolean)
+  @callback expire(adapter_meta, key, ttl, opts) :: Nebulex.Cache.ok_error_tuple(boolean)
 
   @doc """
   Returns `{:ok, true}` if the given `key` exists and the last access time was
@@ -209,5 +209,5 @@ defmodule Nebulex.Adapter.Entry do
 
   See `c:Nebulex.Cache.touch/1`.
   """
-  @callback touch(adapter_meta, key) :: Nebulex.Cache.ok_error_tuple(boolean)
+  @callback touch(adapter_meta, key, opts) :: Nebulex.Cache.ok_error_tuple(boolean)
 end
