@@ -200,7 +200,7 @@ if Code.ensure_loaded?(Decorator.Define) do
           # the logic for deleting the account ...
         end
 
-        @decorate cacheable(
+        @decorate cache_evict(
                     cache: Cache,
                     keys: [{Account, acct.id}, {Account, acct.email}]
                   )
@@ -208,7 +208,7 @@ if Code.ensure_loaded?(Decorator.Define) do
           # the logic for deleting the account ...
         end
 
-        @decorate cacheable(cache: Cache, all_entries: true)
+        @decorate cache_evict(cache: Cache, all_entries: true)
         def delete_all_accounts do
           # the logic for deleting all the accounts ...
         end
@@ -381,7 +381,7 @@ if Code.ensure_loaded?(Decorator.Define) do
           end
         end
 
-    See [Cache Usage Patters Guide](http://hexdocs.pm/nebulex/cache-usage-patterns.html).
+    See [Cache Usage Patterns Guide](http://hexdocs.pm/nebulex/cache-usage-patterns.html).
     """
 
     use Decorator.Define, cacheable: 1, cache_evict: 1, cache_put: 1
